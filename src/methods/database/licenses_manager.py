@@ -46,9 +46,9 @@ class LicensesDatabase:
                 return result
 
     # @classmethod
-    # async def get_product(cls, beat_id: int):
+    # async def get_product(cls, product_id: int):
     #     async with aiosqlite.connect("src/databases/licenses.db") as db:
-    #         async with db.execute(f'SELECT * FROM licenses WHERE beat_id = {beat_id}') as cursor:
+    #         async with db.execute(f'SELECT * FROM licenses WHERE product_id = {product_id}') as cursor:
     #             result = await cursor.fetchone()
     #             if not result:
     #                 return -1

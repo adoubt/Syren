@@ -9,7 +9,7 @@ class ProductsDatabase:
     async def create_table(self):
         async with aiosqlite.connect("src/databases/products.db") as db:
             async with db.execute('''CREATE TABLE IF NOT EXISTS products(
-                                    beat_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                    product_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                                     user_id INTEGER,
                                     name STRING,
                                     bpm INTEGER,
@@ -32,9 +32,9 @@ class ProductsDatabase:
                 pass
 
     @classmethod
-    async def get_value(cls, key: Any, beat_id:int):
+    async def get_value(cls, key: Any, product_id:int):
         async with aiosqlite.connect("src/databases/products.db") as db:
-            async with db.execute(f'SELECT {key} FROM products WHERE beat_id = {beat_id}') as cursor:
+            async with db.execute(f'SELECT {key} FROM products WHERE product_id = {product_id}') as cursor:
                 result = await cursor.fetchone()
                 if not result:
                     return -1
@@ -50,9 +50,9 @@ class ProductsDatabase:
                 return result
 
     @classmethod
-    async def get_product(cls, beat_id: int):
+    async def get_product(cls, product_id: int):
         async with aiosqlite.connect("src/databases/products.db") as db:
-            async with db.execute(f'SELECT * FROM products WHERE beat_id = {beat_id}') as cursor:
+            async with db.execute(f'SELECT * FROM products WHERE product_id = {product_id}') as cursor:
                 result = await cursor.fetchone()
                 if not result:
                     return -1
@@ -60,12 +60,12 @@ class ProductsDatabase:
             
 
     @classmethod
-    async def set_value(cls, beat_id: int, key: Any, new_value: Any):
+    async def set_value(cls, product_id: int, key: Any, new_value: Any):
         async with aiosqlite.connect("src/databases/productss.db") as db:
             if type(key) is int:
-                await db.execute(f'UPDATE products SET {key}={new_value} WHERE beat_id={beat_id}')
+                await db.execute(f'UPDATE products SET {key}={new_value} WHERE product_id={product_id}')
             else:
-                await db.execute(f'UPDATE products SET {key}=? WHERE beat_id={beat_id}',(new_value,))
+                await db.execute(f'UPDATE products SET {key}=? WHERE product_id={product_id}',(new_value,))
             await db.commit()
 
     @classmethod
@@ -101,7 +101,7 @@ class ProductsDatabase:
             await db.execute(f'DELETE FROM products')
             await db.commit()
     @classmethod
-    async def del_product(cls,beat_id):        
+    async def del_product(cls,product_id):        
         async with aiosqlite.connect("src/databases/products.db") as db:
-            await db.execute(f'DELETE FROM products WHERE beat_id = {beat_id}')
+            await db.execute(f'DELETE FROM products WHERE product_id = {product_id}')
             await db.commit()

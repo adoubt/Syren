@@ -34,9 +34,9 @@ async def start_handler(message: Message, is_clb=False, **kwargs):
         await message.delete()
     if message.text != "/start":
         data = message.text.split(" ",1)[-1]
-        beat_id = int(data)
-        mp3_link = await ProductsDatabase.get_value("mp3_link", beat_id) 
-        feature = 
+        product_id = int(data)
+        mp3_link = await ProductsDatabase.get_value("mp3_link", product_id) 
+        price = 
         if mp3_link == -1:
             await message.answer("404..")
         else:
