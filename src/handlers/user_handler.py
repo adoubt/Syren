@@ -13,7 +13,7 @@ from src.keyboards import user_keyboards
 from src.methods.database.users_manager import UsersDatabase
 # from src.methods.database.payments_manager import OrdersDatabase
 from src.methods.database.products_manager import ProductsDatabase
-
+from src.methods.database.licenses_manager import LicensesDatabase
 # from src.methods.payment import aaio_manager
 # from src.methods.payment.payment_processing import ProcessOrder
 
@@ -81,6 +81,7 @@ async def start_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 
 
 @router.message(F.audio)
+#proverka etogo bita v magaze
 @new_user_handler
 async def new_product(msg: Message, is_clb=False, **kwargs):
     user_id = msg.from_user.id
@@ -91,6 +92,7 @@ async def new_product(msg: Message, is_clb=False, **kwargs):
 
     await msg.answer(text = 'Poehali', parse_mode="HTML")
     #proverka etogo bita v magaze
-    await ProductsDatabase.create_table()
+    # await ProductsDatabase.create_table()
     await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=file_id)
+    
     logger.success(f"New product {name} by {user_id}")
