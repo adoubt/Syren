@@ -13,50 +13,14 @@ from src.keyboards import user_keyboards
 from src.methods.database.users_manager import UsersDatabase
 # from src.methods.database.payments_manager import OrdersDatabase
 from src.methods.database.products_manager import ProductsDatabase
-from src.methods.licenses_manager import LicensesDatabase
+from src.methods.database.licenses_manager import LicensesDatabase
+from src.methods.database.carts_manager import CartsDatabase
 # from src.methods.payment import aaio_manager
 # from src.methods.payment.payment_processing import ProcessOrder
 
 router =  Router()
 from src.misc import bot,bot_id, super_admin,password
-
-
-def new_seller_handler(function):
-    async def _new_seller_handler(*args, **kwargs):
-        message: Message = args[0]
-        user_id = message.from_user.id
-        if (await UsersDatabase.get_value(user_id, 'is_seller')) == 0:
-            await UsersDatabase.set_value(user_id, 'is_seller', 1)
-            await LicensesDatabase.set_default()
-        return await function(*args, **kwargs)
-
-    return _new_seller_handler
-
-def new_user_handler(function):
-    async def _new_user_handler(*args, **kwargs):
-        message: Message = args[0]
-        user_id = message.from_user.id
-        await UsersDatabase.create_table()
-        if (await UsersDatabase.get_user(user_id)) == -1:
-            await UsersDatabase.create_user(user_id)
-            
-            logger.success(f"Новый пользователь (ID: {user_id})")
-            if user_id == int(bot_id):
-
-                await UsersDatabase.set_value(user_id,'status',1)
-                #назначение бота админом для кнопок в админке(костыль, вроде пофикшен)
-                logger.info(f'[Admin] {user_id} получил права админа')
-            # else:
-                # await message.answer(
-                # "👋 Привет, вижу ты новенький. Будем знакомы, чтобы получить список моих команд напиши <code>/help</code>",
-                # parse_mode="HTML")
-
-
-        return await function(*args, **kwargs)
-
-    return _new_user_handler
-
-
+from src.handlers.decorators import new_seller_handler, new_user_handler
 
 @router.message(Command("start"))
 @new_user_handler
@@ -81,15 +45,6 @@ async def start_handler(message: Message, is_clb=False, **kwargs):
     # else:
     #     await message.answer_photo(photo =start_photo,caption=text,parse_mode="HTML" )
 
-
-@router.callback_query(lambda clb: clb.data == 'start')
-@new_user_handler
-async def start_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-    await start_handler(clb.message, is_clb=True)
-    
-
-
-
 @router.message(F.audio)
 #proverka etogo bita v magaze
 @new_user_handler
@@ -103,7 +58,32 @@ async def new_product(msg: Message, is_clb=False, **kwargs):
 
     await msg.answer(text = 'Poehali', parse_mode="HTML")
     #proverka etogo bita v magaze
-    # await ProductsDatabase.create_table()
+    await ProductsDatabase.create_table()
     await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=file_id)
     
     logger.success(f"New product {name} by {user_id}")
+
+
+
+
+@router.message(Command("homepage"))
+@new_user_handler
+async def homepage_handler(message: Message, is_clb=False, **kwargs):
+    if is_clb:
+        await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+    else:
+        await message.delete()
+    user_id = message.from_user.id
+    cart = CartsDatabase.get_value(user_id)
+    await message.answer(text = f'Лучший маркетплейс музыки.\n Подписывайтесь на наш канал (линк).',reply_markup = user_keyboards.get_homepage_kb(user_id))
+
+@router.message(Command("settings"))
+@new_user_handler
+async def settings_handler(message: Message, is_clb=False, **kwargs):
+    if is_clb:
+        await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+    else:
+        await message.delete()
+    user_id = message.from_user.id
+
+    await message.answer(text = f'Settings',reply_markup = user_keyboards.get_settings_kb())

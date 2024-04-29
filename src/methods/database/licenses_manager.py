@@ -105,7 +105,7 @@ class LicensesDatabase:
 
     @classmethod
     async def set_default(cls, user_id:int):
-        
+        await cls.create_table()
         await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=20,feature=1,mp3=1,license_file='file_id contract',)
         await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=35,feature=0,mp3=1,wav=1,license_file='file_id contract',)
         await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=75,feature=0,mp3=1,wav=1,stems=1,license_file='file_id contract',)
