@@ -36,10 +36,11 @@ async def start_handler(message: Message, is_clb=False, **kwargs):
         data = message.text.split(" ",1)[-1]
         beat_id = int(data)
         mp3_link = await ProductsDatabase.get_value("mp3_link", beat_id) 
+        feature = 
         if mp3_link == -1:
             await message.answer("404..")
         else:
-            await message.answer_audio(audio= mp3_link,  reply_markup=user_keyboards.get_licenses_kb(), caption = 'Jopa')
+            await message.answer_audio(audio=mp3_link,  reply_markup=user_keyboards.get_showcase_kb(), caption = 'Text')
     # if start_photo =="":
     #     await message.answer(text = text, parse_mode="HTML")
     # else:

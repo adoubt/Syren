@@ -13,6 +13,7 @@ def get_choose_licenses_kb(beat_id,user_licenses) -> InlineKeyboardMarkup:
 def get_showcase_kb(feature_license: int| None) -> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f'Buy {feature_license}', callback_data='choose_license')],
+        [InlineKeyboardButton(text=f' {feature_license}', callback_data='choose_license')],
     ]) 
     return ikb
 

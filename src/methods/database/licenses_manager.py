@@ -19,7 +19,6 @@ class LicensesDatabase:
                                     wav INTEGER,
                                     stems INTEGER,
                                     is_exclusive INTEGER,
-                                    views INTEGER,
                                     min_offer_price REAL,
                                     license_file STRING,
                                     is_archived STRING,
