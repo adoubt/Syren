@@ -23,7 +23,7 @@ class LicensesDatabase:
                                     min_offer_price REAL,
                                     license_file STRING,
                                     is_archived STRING,
-                                    is_custom INTEGER
+                                    is_offer_only INTEGER
                                     )'''
                                   ) as cursor:
                 pass
@@ -79,11 +79,13 @@ class LicensesDatabase:
                             min_offer_price: float| None = None,
                             license_file: str | None = None,
                             is_archived:int| None = 0,
+                            is_offer_only:int| None = 0,
                             ):
         async with aiosqlite.connect("src/databases/licenses.db") as db:
-            await db.execute(f'INSERT INTO licenses ("user_id", "name", "description", "price", "feature","mp3","wav", "stems","is_exclusive", "min_offer_price","license_file","is_archived") VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
-                             (user_id,name,description,price,feature,mp3,wav,stems,is_exclusive,min_offer_price,license_file,is_archived))
+            await db.execute(f'INSERT INTO licenses ("user_id", "name", "description", "price", "feature","mp3","wav", "stems","is_exclusive", "min_offer_price","license_file","is_archived","is_offer_only") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                             (user_id,name,description,price,feature,mp3,wav,stems,is_exclusive,min_offer_price,license_file,is_archived,is_offer_only))
             await db.commit()
+    
 #INSERT INTO licenses ("name", "requests", "price_usd", "price_rub", "short_desc", "long_desc") VALUES ("50 Запросов 📕" ,100,1.00,49, "50 Запросов за 49 Рублей","Вы получите 50 запросов для общения с ботом. Запросом может быть как обычное сообщение, так и фото!")
 #INSERT INTO licenses ("name", "requests", "price_usd", "price_rub", "short_desc", "long_desc") VALUES ("200 Запросов 📚" ,200,3.00,149, "200 Запросов за 149 Рублей","Вы получите 200 запросов для общения с ботом. Запросом может быть как обычное сообщение, так и фото!")
   
@@ -92,3 +94,21 @@ class LicensesDatabase:
         async with aiosqlite.connect("src/databases/licenses.db") as db:
             await db.execute(f'DELETE FROM licenses WHERE license_id = {license_id}')
             await db.commit()
+
+    async def del_all_by_user(cls, user_id):
+        async with aiosqlite.connect("src/databases/licenses.db") as db:
+            await db.execute(f'DELETE FROM licenses WHERE user_id = {user_id}')
+            await db.commit()
+
+
+
+
+    @classmethod
+    async def set_default(cls, user_id:int):
+        
+        await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=20,feature=1,mp3=1,license_file='file_id contract',)
+        await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=35,feature=0,mp3=1,wav=1,license_file='file_id contract',)
+        await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=75,feature=0,mp3=1,wav=1,stems=1,license_file='file_id contract',)
+        await cls.create_license(user_id=user_id,name="Unlimited",description='MP3 + WAV + STEMS',price=150,feature=0,mp3=1,wav=1,stems=1,license_file='file_id contract',)
+        await cls.create_license(user_id=user_id,name="Exclusive",description='MP3 + WAV + STEMS',price=500,feature=0,mp3=1,wav=1,stems=1,is_exclusive=1,license_file='file_id contract',)
+        

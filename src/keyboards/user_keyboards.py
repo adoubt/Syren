@@ -1,7 +1,7 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def get_choose_licenses_kb(beat_id,) -> InlineKeyboardMarkup:
+def get_choose_licenses_kb(beat_id,user_licenses) -> InlineKeyboardMarkup:
 
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='mp3 5 руб', callback_data=f'addToCart_{beat_id}_{license_id}')],

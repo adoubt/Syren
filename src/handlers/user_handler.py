@@ -13,7 +13,7 @@ from src.keyboards import user_keyboards
 from src.methods.database.users_manager import UsersDatabase
 # from src.methods.database.payments_manager import OrdersDatabase
 from src.methods.database.products_manager import ProductsDatabase
-from src.methods.database.licenses_manager import LicensesDatabase
+from src.methods.licenses_manager import LicensesDatabase
 # from src.methods.payment import aaio_manager
 # from src.methods.payment.payment_processing import ProcessOrder
 
@@ -21,6 +21,16 @@ router =  Router()
 from src.misc import bot,bot_id, super_admin,password
 
 
+def new_seller_handler(function):
+    async def _new_seller_handler(*args, **kwargs):
+        message: Message = args[0]
+        user_id = message.from_user.id
+        if (await UsersDatabase.get_value(user_id, 'is_seller')) == 0:
+            await UsersDatabase.set_value(user_id, 'is_seller', 1)
+            await LicensesDatabase.set_default()
+        return await function(*args, **kwargs)
+
+    return _new_seller_handler
 
 def new_user_handler(function):
     async def _new_user_handler(*args, **kwargs):
@@ -83,6 +93,7 @@ async def start_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 @router.message(F.audio)
 #proverka etogo bita v magaze
 @new_user_handler
+@new_seller_handler
 async def new_product(msg: Message, is_clb=False, **kwargs):
     user_id = msg.from_user.id
     performer = msg.audio.performer
