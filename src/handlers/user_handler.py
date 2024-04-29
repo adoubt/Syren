@@ -35,8 +35,14 @@ async def start_handler(message: Message, is_clb=False, **kwargs):
     if message.text != "/start":
         data = message.text.split(" ",1)[-1]
         product_id = int(data)
-        mp3_link = await ProductsDatabase.get_value("mp3_link", product_id) 
-        price = 
+        # mp3_link = await ProductsDatabase.get_value("mp3_link", product_id) 
+        product = await ProductsDatabase.get_product(product_id)
+        mp3_link = product[5]
+        image_link = product[8]
+        is_sold = product[9]
+        collab = product[11]
+        tags = product[12]
+        feature = await LicensesDatabase.get_value("feature")
         if mp3_link == -1:
             await message.answer("404..")
         else:
