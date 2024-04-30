@@ -55,9 +55,18 @@ class CartsDatabase:
     async def add_to_cart(cls, 
                             user_id: int,
                             product_id: int,
-                            license_id: int,
+                            license_id: int
                             ):
         async with aiosqlite.connect("src/databases/carts.db") as db:
-            await db.execute(f'INSERT INTO carts ("user_id", "product_id","license_id") VALUES (?,?,?)',
+            await db.execute(f'REPLACE INTO carts ("user_id", "product_id","license_id") VALUES (?,?,?)',
                              (user_id,product_id,license_id))
             await db.commit()
+    
+    @classmethod    
+    async def get_cart_by_user(cls, user_id:int):
+        async with aiosqlite.connect("src/databases/carts.db") as db:
+            async with db.execute(f'SELECT * FROM carts WHERE user_id = {user_id}') as cursor:
+                result = await cursor.fetchall()
+                if not result:
+                    return []
+                return result

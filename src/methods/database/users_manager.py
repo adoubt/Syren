@@ -53,7 +53,7 @@ class UsersDatabase:
     async def create_user(cls, user_id: int,language:str|None = "ENG"):
         async with aiosqlite.connect("src/databases/users.db") as db:
             await db.execute(f'''INSERT INTO users("user_id", "is_seller", "is_banned", "is_admin", "balance","username","artist_name", "email","insta","subscription", "wallet", "language","channel") 
-                             VALUES ({user_id}, 0, 0, 0, 0, "durov", "Travis Scott", "ab@somegoogle.com",'', 0, 0,"ENG",'')''')
+                             VALUES ({user_id}, 0, 0, 0, 0, "durov", "Travis Scott", "ab@somegoogle.com",'', 0, 0,"ENG",'https://t.me/prodmeta')''')
             await db.commit()
 
     @classmethod

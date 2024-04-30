@@ -40,6 +40,15 @@ class LicensesDatabase:
                 if not result:
                     return []
                 return result
+    
+    @classmethod
+    async def get_license(cls, license_id: int):
+        async with aiosqlite.connect("src/databases/licenses.db") as db:
+            async with db.execute(f'SELECT * FROM licenses WHERE license_id = {license_id}') as cursor:
+                result = await cursor.fetchone()
+                if not result:
+                    return -1
+                return result
             
     @classmethod    
     async def get_feature_by_user(cls, user_id:int):
