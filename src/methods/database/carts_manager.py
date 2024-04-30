@@ -7,7 +7,7 @@ class CartsDatabase:
     @classmethod
     async def create_table(self):
         async with aiosqlite.connect("src/databases/carts.db") as db:
-            async with db.execute('''CREATE TABLE IF NOT EXISTS catrs(
+            async with db.execute('''CREATE TABLE IF NOT EXISTS carts(
                                     user_id INTEGER PRIMARY KEY,
                                     product_id INTEGER,
                                     license_id INTEGER
@@ -23,7 +23,16 @@ class CartsDatabase:
                 if not result:
                     return -1
                 return result[0]
-    
+            
+    @classmethod
+    async def get_cart_count(cls, user_id:int):
+        async with aiosqlite.connect("src/databases/carts.db") as db:
+            async with db.execute(f'SELECT COUNT(*) FROM carts WHERE user_id = {user_id}') as cursor:
+                result = await cursor.fetchone()
+                if not result:
+                    return -1
+                return result[0]
+
     @classmethod        
     async def del_from_cart(cls,user_id:int,product_id:int):        
         async with aiosqlite.connect("src/databases/carts.db") as db:

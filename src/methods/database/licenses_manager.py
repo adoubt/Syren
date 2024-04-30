@@ -33,9 +33,9 @@ class LicensesDatabase:
                     return -1
                 return result[0]
     @classmethod    
-    async def get_licenses_by_user(cls, user_id:int):
+    async def get_licenses_by_user(cls, user_id:int,license_type:int):
         async with aiosqlite.connect("src/databases/licenses.db") as db:
-            async with db.execute(f'SELECT * FROM licenses WHERE user_id = {user_id}') as cursor:
+            async with db.execute(f'SELECT * FROM licenses WHERE user_id = {user_id} AND license_type<={license_type} AND is_archived = 0') as cursor:
                 result = await cursor.fetchall()
                 if not result:
                     return []
@@ -50,15 +50,6 @@ class LicensesDatabase:
                     return -1
                 return result[0]
             
-    @classmethod    
-    async def get_licenses_by_product(cls, product_id:int):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
-            async with db.execute(f'SELECT * FROM licenses WHERE product_id = {product_id}') as cursor:
-                result = await cursor.fetchall()
-                if not result:
-                    return []
-                return result
-
     @classmethod
     async def get_all(cls):
         async with aiosqlite.connect("src/databases/licenses.db") as db:

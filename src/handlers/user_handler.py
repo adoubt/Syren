@@ -24,29 +24,40 @@ from src.handlers.decorators import new_seller_handler, new_user_handler
 
 @router.message(Command("start"))
 @new_user_handler
-async def start_handler(message: Message, is_clb=False, **kwargs):
+async def start_handler(message: Message, is_clb=False, product_id:int| None=None,**kwargs):
 
-    text = 'ff' #start_msg
-    
     if is_clb:
         await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
     else:
         await message.delete()
-    if message.text != "/start":
         data = message.text.split(" ",1)[-1]
         product_id = int(data)
-        # mp3_link = await ProductsDatabase.get_value("mp3_link", product_id) 
+    if message.text != "/start":
+        
         product = await ProductsDatabase.get_product(product_id)
+        license_type=5
+        stems_link = product[7]
+        wav_link = product[6]
         mp3_link = product[5]
+        if stems_link =='':
+            license_type=2
+        if wav_link !='':
+            license_type=1
+        if mp3_link !='':
+            license_type=0
+        
+        
         image_link = product[8]
         is_sold = product[9]
         collab = product[11]
         tags = product[12]
-        feature = await LicensesDatabase.get_value("feature")
+        seller = product[1]
+        featured_price = await LicensesDatabase.get_feature_by_user(seller)
+        channel = await UsersDatabase.get_value(seller,"channel")
         if mp3_link == -1:
             await message.answer("404..")
         else:
-            await message.answer_audio(audio=mp3_link,  reply_markup=user_keyboards.get_showcase_kb(), caption = 'Text')
+            await message.answer_audio(audio=mp3_link,  reply_markup=user_keyboards.get_showcase_kb(product_id=product_id, price=featured_price,is_sold=is_sold, license_type=license_type,channel= channel), caption = 'Text')
     # if start_photo =="":
     #     await message.answer(text = text, parse_mode="HTML")
     # else:
@@ -81,8 +92,9 @@ async def homepage_handler(message: Message, is_clb=False, **kwargs):
     else:
         await message.delete()
     user_id = message.from_user.id
-    cart = CartsDatabase.get_value(user_id)
-    await message.answer(text = f'Лучший маркетплейс музыки.\n Подписывайтесь на наш канал (линк).',reply_markup = user_keyboards.get_homepage_kb(user_id))
+    await CartsDatabase.create_table()
+    cart_count = await CartsDatabase.get_cart_count(user_id)
+    await message.answer(text = f'Лучший маркетплейс музыки.\n Подписывайтесь на наш канал (линк).',reply_markup = user_keyboards.get_homepage_kb(user_id,cart_count))
 
 @router.message(Command("settings"))
 @new_user_handler
@@ -94,3 +106,50 @@ async def settings_handler(message: Message, is_clb=False, **kwargs):
     user_id = message.from_user.id
 
     await message.answer(text = f'Settings',reply_markup = user_keyboards.get_settings_kb())
+
+@router.callback_query(lambda clb: clb.data == 'start')
+@new_user_handler
+async def start_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await start_handler(clb.message, is_clb=True)
+
+@router.callback_query(lambda clb: clb.data == 'homepage')
+@new_user_handler
+async def homepage_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await homepage_handler(clb.message, is_clb=True)
+
+
+@router.callback_query(lambda clb: clb.data == 'settings')
+@new_user_handler
+async def settings_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await settings_handler(clb.message, is_clb=True)
+
+    
+
+
+@router.callback_query(lambda clb: clb.data.startswith("showcase"))
+@new_user_handler
+async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    data = clb.data.split('_',1)
+    product_id = data[1]
+    await start_handler(clb.message, is_clb=True,product_id = product_id)
+
+@router.callback_query(lambda clb: clb.data.startswith("choose_license_"))
+async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+
+    data = clb.data.split('_',2)
+    user_id = clb.from_user.id
+    product_id = data[2]
+    product = await ProductsDatabase.get_product(product_id)
+    license_type=5
+    seller = product[1]
+    stems_link = product[7]
+    wav_link = product[6]
+    mp3_link = product[5]
+    if stems_link =='':
+        license_type=2
+    if wav_link =='':
+        license_type=1
+    if mp3_link =='':
+        license_type=0
+    licenses = await LicensesDatabase.get_licenses_by_user(seller, license_type)
+    await clb.message.edit_caption(caption = 'Choose license', reply_markup = user_keyboards.get_choose_licenses_kb(user_id,product_id,licenses))

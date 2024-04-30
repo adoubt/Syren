@@ -18,7 +18,7 @@ class UsersDatabase:
                                                         insta STRING,
                                                         subscription INTEGER,
                                                         wallet INTEGER,
-                                                        language STRING
+                                                        language STRING,
                                                         channel STRING)''') as cursor:
                 pass
 
