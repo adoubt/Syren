@@ -107,8 +107,8 @@ def get_main_buyer_kb(cart) -> ReplyKeyboardMarkup:
         [KeyboardButton(text='🛍 Purchases', callback_data='purchases')],
         [KeyboardButton(text='♟ Negotiations', callback_data='negotiation_0')],
         [KeyboardButton(text='⚙️ Settings', callback_data='settings')],
-        [KeyboardButton(text='Sell', callback_data='seller')],
-    ])
+        [KeyboardButton(text='🌏 Sell Beats', callback_data='seller')]], resize_keyboard=True
+    )
     return rkb
 
 def get_main_seller_kb() -> ReplyKeyboardMarkup:
@@ -120,6 +120,6 @@ def get_main_seller_kb() -> ReplyKeyboardMarkup:
         [KeyboardButton(text='🍞 Sales', callback_data='sales')],
         [KeyboardButton(text='📊 Stats', callback_data='stats')],
         [KeyboardButton(text='⚙️ Settings', callback_data='settings_1')],
-        [KeyboardButton(text='🌏 Buy Beats', callback_data='start')],
-    ])
+        [KeyboardButton(text='🌏 Buy Beats', callback_data='buyer')]], resize_keyboard=True
+    )
     return rkb

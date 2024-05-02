@@ -275,12 +275,10 @@ async def beat_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     name = product[2]
     await clb.message.edit_text(text=f'<b>{name}</b>\nLink (tap to copy):\n<code>{link}</code>',parse_mode="HTML",reply_markup=user_keyboards.get_beat_kb(product_id))
 
-@router.message(Command("Sell"))
+@router.message(F.text == "🌏 Sell Beats")
 async def seller_handler(message: Message, is_clb=False, **kwargs):
-    await message.answer('text')
-    await message.edit_text(text='Seller Welcome MSG', reply_markup=user_keyboards.get_main_seller_kb())
+    await message.answer(text='Seller Welcome MSG', reply_markup=user_keyboards.get_main_seller_kb())
 
-@router.callback_query(lambda clb: clb.data == 'seller')
-async def seller_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-    await seller_handler(clb.message, is_clb=True)
-
+@router.message(F.text == "🌏 Buy Beats")
+async def buyer_handler(message: Message, is_clb=False, **kwargs):
+    await start_handler(message)
