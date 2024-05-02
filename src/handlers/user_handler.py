@@ -23,20 +23,29 @@ router =  Router()
 from src.misc import bot,bot_id, super_admin,password
 from src.handlers.decorators import new_seller_handler, new_user_handler
 
+
+
 @router.message(Command("start"))
 @new_user_handler
 async def start_handler(message: Message, is_clb=False, product_id:int| None=None,**kwargs):
-    
+    await CartsDatabase.create_table()
     if is_clb:
         user_id = message.chat.id
-        await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+        cart_count = await CartsDatabase.get_cart_count(user_id)
+        await message.edit_text(text='Welcome ', reply_markup = user_keyboards.get_main_buyer_kb(cart_count))
+        # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
     else:
         user_id = message.from_user.id
-        await message.delete()
+        cart_count = await CartsDatabase.get_cart_count(user_id)
+        # await message.delete()
+        await message.answer(text='Welcome', reply_markup = user_keyboards.get_main_buyer_kb(cart_count))
+   
+    
+   
+
+    if message.text != "/start":
         data = message.text.split(" ",1)[-1]
         product_id = int(data)
-    if message.text != "/start":
-        
         product = await ProductsDatabase.get_product(product_id)
         # license_type=5
         # stems_link = product[7]
@@ -48,7 +57,6 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
         #     license_type=1
         # if mp3_link !='':
         #     license_type=0
-        
         
         image_link = product[8]
         is_sold = product[9]
@@ -93,10 +101,10 @@ async def new_product(msg: Message, is_clb=False, **kwargs):
 @router.message(Command("homepage"))
 @new_user_handler
 async def homepage_handler(message: Message, is_clb=False, **kwargs):
-    if is_clb:
-        await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-    else:
-        await message.delete()
+    # if is_clb:
+    #     # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+    # else:
+    #     await message.delete()
     user_id = message.from_user.id
     await CartsDatabase.create_table()
     cart_count = await CartsDatabase.get_cart_count(user_id)
@@ -105,13 +113,13 @@ async def homepage_handler(message: Message, is_clb=False, **kwargs):
 @router.message(Command("settings"))
 @new_user_handler
 async def settings_handler(message: Message, is_clb=False, **kwargs):
-    if is_clb:
-        await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-    else:
-        await message.delete()
+    # if is_clb:
+    #     await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+    # else:
+    #     await message.delete()
     user_id = message.from_user.id
 
-    await message.answer(text = f'Settings',reply_markup = user_keyboards.get_settings_kb())
+    await message.edit_text(text = f'Settings',reply_markup = user_keyboards.get_settings_kb())
 
 @router.callback_query(lambda clb: clb.data == 'start')
 @new_user_handler
@@ -163,7 +171,7 @@ async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs)
 
 
 @router.callback_query(lambda clb: clb.data.startswith("addToCart"))
-async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+async def addToCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',3)
     product_id,user_id,license_id = data[1],data[3],data[2]
@@ -180,14 +188,14 @@ async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 async def cart_handler(message: Message, is_clb=False, **kwargs):
     if is_clb:
         user_id = message.chat.id
-        await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+        # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
     else:
-        await message.delete()
+        # await message.delete()
         user_id = message.from_user.id
     
     if await CartsDatabase.get_cart_count(user_id)==0:
         await CartsDatabase.create_table()
-        await message.answer(text = "Your Cart is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
+        await message.edit_text(text = "Your Cart is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
         return
 
     cart = await CartsDatabase.get_cart_by_user(user_id)
@@ -212,7 +220,7 @@ async def cart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 
 
 @router.callback_query(lambda clb: clb.data.startswith("delItemFromCart"))
-async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+async def delItemFromCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',2)
     user_id,product_id = data[1],data[2]
@@ -220,3 +228,59 @@ async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     if await CartsDatabase.get_cart_count(user_id)==0:
         await CartsDatabase.create_table()
         await clb.message.edit_caption(text = "Your Cart is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
+
+
+@router.message(Command("Mybeats"))
+@new_user_handler
+async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
+    if is_clb:
+        user_id = message.chat.id
+        # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+    else:
+        # await message.delete()
+        user_id = message.from_user.id
+    total_beats = await ProductsDatabase.get_count_by_user(user_id)
+    total_pages = (total_beats //10) + 1
+    if current_page >= total_pages:
+        current_page = total_pages
+    if current_page < 0:
+        current_page = 0
+    
+    beats = await ProductsDatabase.get_all_by_user(user_id, current_page*10)
+    await message.edit_text(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
+
+@router.callback_query(lambda clb: clb.data.startswith('mybeats'))
+@new_user_handler
+async def mybeats_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    data = clb.data.split('_',1)
+    current_page = int(data[1])
+    await mybeats_handler(clb.message, is_clb=True,current_page = current_page)
+
+@router.callback_query(lambda clb: clb.data == 'current_page')
+async def current_page_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await clb.answer()
+
+@router.message(Command("Newbeat"))
+@new_user_handler
+async def newbeat_handler(message: Message, is_clb=False,**kwargs):
+    pass
+
+
+@router.callback_query(lambda clb: clb.data.startswith('beat'))
+async def beat_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    data = clb.data.split('_',1)
+    product_id = int(data[1])
+    product = await ProductsDatabase.get_product(product_id) 
+    link = f't.me/OctarynBot?start={product_id}'
+    name = product[2]
+    await clb.message.edit_text(text=f'<b>{name}</b>\nLink (tap to copy):\n<code>{link}</code>',parse_mode="HTML",reply_markup=user_keyboards.get_beat_kb(product_id))
+
+@router.message(Command("Sell"))
+async def seller_handler(message: Message, is_clb=False, **kwargs):
+    await message.answer('text')
+    await message.edit_text(text='Seller Welcome MSG', reply_markup=user_keyboards.get_main_seller_kb())
+
+@router.callback_query(lambda clb: clb.data == 'seller')
+async def seller_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await seller_handler(clb.message, is_clb=True)
+

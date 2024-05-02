@@ -35,6 +35,7 @@ def get_homepage_kb(user_id, cart)-> InlineKeyboardMarkup:
     if cart > 0:cart_view = f'Cart({cart})'
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=cart_view, callback_data='cart')],
+        [InlineKeyboardButton(text='My Beats', callback_data='mybeats_0')],
         [InlineKeyboardButton(text='Settings', callback_data='settings')]
     ]) 
     return ikb
@@ -43,7 +44,7 @@ def get_settings_kb()-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Сменить язык", callback_data='change_languge')],
         [InlineKeyboardButton(text="Уведомления", callback_data='notifications')],
-        [InlineKeyboardButton(text="Назад", callback_data='homepage')],
+        [InlineKeyboardButton(text="Back", callback_data='homepage')],
     ]) 
     return ikb
 
@@ -55,3 +56,70 @@ def get_item_in_cart_kb(user_id,product_id,license_name,price,description, licen
     return ikb
 # def get_total_in_cart_kb()
 
+
+def get_my_beats_kb(products,current_page:int, total_pages:int)-> InlineKeyboardMarkup:
+    header = []
+    
+    header.append(InlineKeyboardButton(text='➕ New Beat', callback_data="new_beat"))
+    buttons = []
+    for product in products:
+        name = product[2]
+        product_id = product[0]
+        buttons = buttons+[InlineKeyboardButton(text=name, callback_data=f"beat_{product_id}")]
+    pagination = []
+    # if current_page != 1:
+    # pagination.append(InlineKeyboardButton(text='⏪', callback_data=f"getprompts_first_{current_page}"))
+    # if current_page > 1:
+    pagination.append(InlineKeyboardButton(text='◀️', callback_data=f"mybeats_{current_page-1}"))
+    pagination.append(InlineKeyboardButton(text = f"{current_page+1}/{total_pages}", callback_data="current_page"))
+    # if current_page < total_pages:
+    pagination.append(InlineKeyboardButton(text='▶️', callback_data=f"mybeats_{current_page+1}"))
+    # if current_page!= total_pages:
+    # pagination.append(InlineKeyboardButton(text='⏩', callback_data=f"getprompts_last_{current_page}"))
+
+    # buttons.append(pagination)
+    
+    # footer.append(InlineKeyboardButton(text='Удалить все', callback_data="del_products"))
+    back = []
+    back.append(InlineKeyboardButton(text='Back', callback_data="homepage"))
+    # buttons.append(footer)
+
+    rows= [header] + [[btn] for btn in buttons] + [pagination] +  [back]
+    
+    ikb = InlineKeyboardMarkup(inline_keyboard=rows)
+    return ikb
+
+
+def get_beat_kb(product_id)-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Edit Beat", callback_data=f'editname_{product_id}')],
+        [InlineKeyboardButton(text="Delete Beat", callback_data=f'delproduct_{product_id}')],
+        [InlineKeyboardButton(text="Back", callback_data=f'mybeats_0')],
+    ]) 
+    return ikb
+
+def get_main_buyer_kb(cart) -> ReplyKeyboardMarkup:
+    cart_view = 'Cart'
+    if cart > 0:cart_view = f'Cart({cart})'
+    rkb = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text='🏠 Home',callback_data='homepage')],
+        [KeyboardButton(text=f'🛒 {cart_view}', callback_data='cart')],
+        [KeyboardButton(text='🛍 Purchases', callback_data='purchases')],
+        [KeyboardButton(text='♟ Negotiations', callback_data='negotiation_0')],
+        [KeyboardButton(text='⚙️ Settings', callback_data='settings')],
+        [KeyboardButton(text='Sell', callback_data='seller')],
+    ])
+    return rkb
+
+def get_main_seller_kb() -> ReplyKeyboardMarkup:
+    
+    rkb = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text='🏠 Home',callback_data='homepage')],
+        [KeyboardButton(text='📼 My Beats', callback_data='mybeats_0')],
+        [KeyboardButton(text='♟ Negotiations', callback_data='negotiations_1')],
+        [KeyboardButton(text='🍞 Sales', callback_data='sales')],
+        [KeyboardButton(text='📊 Stats', callback_data='stats')],
+        [KeyboardButton(text='⚙️ Settings', callback_data='settings_1')],
+        [KeyboardButton(text='🌏 Buy Beats', callback_data='start')],
+    ])
+    return rkb
