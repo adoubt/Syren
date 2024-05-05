@@ -102,24 +102,33 @@ def get_main_buyer_kb(cart) -> ReplyKeyboardMarkup:
     cart_view = 'Cart'
     if cart > 0:cart_view = f'Cart({cart})'
     rkb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text='🏠 Home',callback_data='homepage')],
-        [KeyboardButton(text=f'🛒 {cart_view}', callback_data='cart')],
-        [KeyboardButton(text='🛍 Purchases', callback_data='purchases')],
-        [KeyboardButton(text='♟ Negotiations', callback_data='negotiation_0')],
-        [KeyboardButton(text='⚙️ Settings', callback_data='settings')],
-        [KeyboardButton(text='🌏 Sell Beats', callback_data='seller')]], resize_keyboard=True
+        [KeyboardButton(text='🏠 Home',callback_data='homepage'),
+        KeyboardButton(text='⚙️ Settings', callback_data='settings')],
+        [KeyboardButton(text='🌏 Sell Beats', callback_data='seller')]],resize_keyboard=True
     )
     return rkb
 
+def get_newbeat_kb()-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Skip", callback_data=f'skip_stems')]
+    ]) 
+    return ikb
 def get_main_seller_kb() -> ReplyKeyboardMarkup:
     
     rkb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text='🏠 Home',callback_data='homepage')],
-        [KeyboardButton(text='📼 My Beats', callback_data='mybeats_0')],
-        [KeyboardButton(text='♟ Negotiations', callback_data='negotiations_1')],
-        [KeyboardButton(text='🍞 Sales', callback_data='sales')],
-        [KeyboardButton(text='📊 Stats', callback_data='stats')],
-        [KeyboardButton(text='⚙️ Settings', callback_data='settings_1')],
-        [KeyboardButton(text='🌏 Buy Beats', callback_data='buyer')]], resize_keyboard=True
+        [KeyboardButton(text='🏠 Home',callback_data='homepage'),
+        KeyboardButton(text='➕ New Beat')],
+        [KeyboardButton(text='📼 My Beats', callback_data='mybeats_0'),
+        KeyboardButton(text='⚙️ Settings', callback_data='settings_1')],
+        [KeyboardButton(text='🌏 Buy Beats', callback_data='buyer')]],resize_keyboard=True
+    )
+    return rkb
+
+def get_cart_buyer_kb(total) -> ReplyKeyboardMarkup:
+    
+    rkb = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text=f' Pay ${total}'),
+         KeyboardButton(text='🔙 Back')],
+        [KeyboardButton(text='🔙 Back', )]],resize_keyboard=True
     )
     return rkb

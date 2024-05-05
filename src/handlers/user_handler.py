@@ -77,40 +77,21 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
     # else:
     #     await message.answer_photo(photo =start_photo,caption=text,parse_mode="HTML" )
 
-@router.message(F.audio)
-#proverka etogo bita v magaze
-@new_user_handler
-@new_seller_handler
-async def new_product(msg: Message, is_clb=False, **kwargs):
-    user_id = msg.from_user.id
-    performer = msg.audio.performer
-    title = msg.audio.title
-    name = msg.audio.file_name
-    file_id = msg.audio.file_id
-
-    await msg.answer(text = 'Poehali', parse_mode="HTML")
-    #proverka etogo bita v magaze
-    await ProductsDatabase.create_table()
-    await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=file_id)
-    
-    logger.success(f"New product {name} by {user_id}")
 
 
 
 
-@router.message(Command("homepage"))
+
+@router.message(F.text == "🏠 Home")
 @new_user_handler
 async def homepage_handler(message: Message, is_clb=False, **kwargs):
-    # if is_clb:
-    #     # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-    # else:
-    #     await message.delete()
+  
     user_id = message.from_user.id
     await CartsDatabase.create_table()
     cart_count = await CartsDatabase.get_cart_count(user_id)
     await message.answer(text = f'Лучший маркетплейс музыки.\n Подписывайтесь на наш канал (линк).',reply_markup = user_keyboards.get_homepage_kb(user_id,cart_count))
 
-@router.message(Command("settings"))
+@router.message(F.text == "⚙️ Settings")
 @new_user_handler
 async def settings_handler(message: Message, is_clb=False, **kwargs):
     # if is_clb:
@@ -119,7 +100,7 @@ async def settings_handler(message: Message, is_clb=False, **kwargs):
     #     await message.delete()
     user_id = message.from_user.id
 
-    await message.edit_text(text = f'Settings',reply_markup = user_keyboards.get_settings_kb())
+    await message.answer(text = f'Settings',reply_markup = user_keyboards.get_settings_kb())
 
 @router.callback_query(lambda clb: clb.data == 'start')
 @new_user_handler
@@ -183,7 +164,7 @@ async def addToCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     channel = await UsersDatabase.get_value(seller,'channel')
     await clb.message.edit_caption(caption = 'Added To Cart ✔', reply_markup = user_keyboards.get_showcase_kb(product_id=product_id,is_sold=is_sold,channel=channel,already_in_cart=1))
 
-@router.message(Command("Cart"))
+@router.message(F.text.startswith("🛒 Cart"))
 @new_user_handler
 async def cart_handler(message: Message, is_clb=False, **kwargs):
     if is_clb:
@@ -230,7 +211,7 @@ async def delItemFromCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs
         await clb.message.edit_caption(text = "Your Cart is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
 
 
-@router.message(Command("Mybeats"))
+@router.message(F.text == "📼 My beats")
 @new_user_handler
 async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
     if is_clb:
@@ -240,6 +221,9 @@ async def mybeats_handler(message: Message, is_clb=False,current_page:int|None =
         # await message.delete()
         user_id = message.from_user.id
     total_beats = await ProductsDatabase.get_count_by_user(user_id)
+    if total_beats == 0:
+        await message.answer('Nothing uploaded yet, go to ➕ New Beat')
+        return
     total_pages = (total_beats //10) + 1
     if current_page >= total_pages:
         current_page = total_pages
@@ -247,7 +231,7 @@ async def mybeats_handler(message: Message, is_clb=False,current_page:int|None =
         current_page = 0
     
     beats = await ProductsDatabase.get_all_by_user(user_id, current_page*10)
-    await message.edit_text(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
+    await message.answer(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
 
 @router.callback_query(lambda clb: clb.data.startswith('mybeats'))
 @new_user_handler
@@ -259,11 +243,76 @@ async def mybeats_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 @router.callback_query(lambda clb: clb.data == 'current_page')
 async def current_page_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     await clb.answer()
+ 
+class NewBeatState(StatesGroup):
+    mp3_ask = State()
+    wav_ask = State()
+    stems_ask = State()
+    preview_ask = State()
 
-@router.message(Command("Newbeat"))
+@router.message(F.text =="➕ New Beat")
 @new_user_handler
-async def newbeat_handler(message: Message, is_clb=False,**kwargs):
-    pass
+async def newbeat_handler(message: Message,state: FSMContext, is_clb=False,**kwargs):
+    await state.set_state(NewBeatState.mp3_ask)
+    await message.answer(text= f'MP3 File\nUpload or forward .MP3')
+
+@router.message(NewBeatState.mp3_ask)
+async def mp3_ask_callback_handler(message: types.Message, state: FSMContext, **kwargs):
+    user_id = message.from_user.id
+    performer = message.audio.performer
+    title = message.audio.title
+    name = message.audio.file_name
+    mp3_link = message.audio.file_id
+
+    #proverka etogo bita v magaze
+    
+
+    await state.set_state(NewBeatState.wav_ask)
+    await state.set_data([user_id,performer,title,name,mp3_link])
+    await message.answer(text= f'WAV File\nUpload or forward .WAV')
+
+@router.message(NewBeatState.wav_ask)
+async def wav_ask_callback_handler(message: types.Message, state: FSMContext, **kwargs):
+    
+    data = await state.get_data() 
+    user_id = data[0]
+    performer = data[1]
+    title = data[2]
+    name = data[3]
+    mp3_link = data[4]
+    wav_link = message.document.file_id
+    
+    await state.set_state(NewBeatState.stems_ask)
+    await state.set_data([user_id,performer,title,name,mp3_link,wav_link])
+    await message.answer(text= f'Stems Archive\nUpload or forward .ZIP',reply_markup = user_keyboards.get_newbeat_kb())
+
+@router.callback_query(lambda clb: clb.data == 'skip_stems')
+async def current_page_handler(clb: CallbackQuery, state : FSMContext, is_clb=False, **kwargs):
+    await state.set_state(NewBeatState.stems_ask)
+    await stems_ask_callback_handler(message = clb.message,state= state, is_skip=True,is_clb=True)
+    await clb.answer()
+@router.message(NewBeatState.stems_ask)
+async def stems_ask_callback_handler(message: types.Message, state: FSMContext,is_clb=False, is_skip= False,**kwargs):
+    
+    data = await state.get_data() 
+    user_id = data[0]
+    performer = data[1]
+    title = data[2]
+    name = data[3]
+    mp3_link = data[4]
+    wav_link = data[5]
+    await state.clear()
+    await ProductsDatabase.create_table()
+    if is_skip:
+        await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=mp3_link,wav_link=wav_link, preview_link=mp3_link)
+    
+    else:
+        stems_link = message.document.file_id
+        await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=mp3_link,wav_link=wav_link,stems_link=stems_link, preview_link=mp3_link)
+    
+    
+    logger.success(f"New product {name} by {user_id}")
+    await message.answer(text= f'Created, go to 📼 My Beats')
 
 
 @router.callback_query(lambda clb: clb.data.startswith('beat'))
@@ -282,3 +331,5 @@ async def seller_handler(message: Message, is_clb=False, **kwargs):
 @router.message(F.text == "🌏 Buy Beats")
 async def buyer_handler(message: Message, is_clb=False, **kwargs):
     await start_handler(message)
+
+
