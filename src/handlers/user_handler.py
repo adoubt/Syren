@@ -211,7 +211,7 @@ async def delItemFromCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs
         await clb.message.edit_caption(text = "Your Cart is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
 
 
-@router.message(F.text == "📼 My beats")
+@router.message(F.text == "📼 My Beats")
 @new_user_handler
 async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
     if is_clb:
@@ -231,7 +231,10 @@ async def mybeats_handler(message: Message, is_clb=False,current_page:int|None =
         current_page = 0
     
     beats = await ProductsDatabase.get_all_by_user(user_id, current_page*10)
-    await message.answer(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
+    if is_clb:
+        await message.edit_text(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
+    else:
+        await message.answer(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
 
 @router.callback_query(lambda clb: clb.data.startswith('mybeats'))
 @new_user_handler
@@ -240,10 +243,74 @@ async def mybeats_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     current_page = int(data[1])
     await mybeats_handler(clb.message, is_clb=True,current_page = current_page)
 
-@router.callback_query(lambda clb: clb.data == 'current_page')
-async def current_page_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-    await clb.answer()
- 
+@router.callback_query(lambda clb: clb.data.startswith('files'))
+@new_user_handler
+async def files_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    data = clb.data.split('_',1)
+    product_id = int(data[1])
+    await clb.message.edit_text(text='Files:',reply_markup = user_keyboards.get_files_kb(product_id))   
+
+@router.callback_query(lambda clb: clb.data.startswith('showfile_'))
+@new_user_handler
+async def files_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    data = clb.data.split('_',2)
+    product_id = int(data[2])
+    product = await ProductsDatabase.get_product(product_id)
+    preview_link,mp3_link,wav_link,stems_link = product[4],product[5],product[6],product[7]
+    if data[1] == 'mp3':
+        await bot.send_audio(chat_id = clb.message.chat.id, audio = mp3_link,reply_markup =user_keyboards.get_hide_file_kb())
+    elif data[1] == 'wav': 
+        await bot.send_document(chat_id = clb.message.chat.id, document = wav_link)
+    elif data[1] == 'stems':
+        await bot.send_document(chat_id = clb.message.chat.id, document = stems_link)
+    elif data[1] == 'preview':
+        await bot.send_audio(chat_id = clb.message.chat.id, audio = preview_link)
+
+
+    await clb.message.edit_text(text='Files:',reply_markup = user_keyboards.get_files_kb(product_id))  
+
+@router.callback_query(lambda clb: clb.data == 'hide_file')
+async def hide_file_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await clb.message.delete()
+
+@router.callback_query(lambda clb: clb.data.startswith('delproduct'))
+async def delproduct_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    product_id = clb.data.split('_',2)[2]
+    is_sure = clb.data.split('_',2)[1]
+    if is_sure =='0':
+        await clb.message.edit_text(text = 'Are You Sure?', reply_markup=user_keyboards.get_delbeat_kb(product_id))
+        return
+    await ProductsDatabase.del_product(product_id)
+    await clb.message.edit_text(text='Deleted')
+
+@router.callback_query(lambda clb: clb.data.startswith('delproduct_sure_'))
+async def del_sure_product_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    product_id = clb.data.split('_',1)[1]
+    await clb.message.edit_text(text = 'Are You Sure?', reply_markup=user_keyboards.get_delbeat_kb(product_id))
+
+class EditProductNameState(StatesGroup):
+    name_ask = State()
+
+@router.callback_query(lambda clb: clb.data.startswith('editproductname'))
+async def editproductname_handler(clb: CallbackQuery, state: FSMContext, is_clb=False, **kwargs):
+    product_id = int(clb.data.split('_',2)[1])
+    await state.set_state(EditProductNameState.name_ask)
+    await state.set_data([product_id])
+    await clb.message.edit_text(text='Type New Name...', reply_markup=user_keyboards.get_editbeatname_kb(product_id))
+@router.message(EditProductNameState.name_ask)
+async def name_ask_callback_handler(message: types.Message, state: FSMContext, **kwargs):
+    name = message.text
+    data = await state.get_data() 
+    product_id= data[0]
+    await ProductsDatabase.set_value(product_id,'name', name) 
+    await state.clear()
+    await beat_handler(product_id)
+@router.callback_query(lambda clb: clb.data.startswith("delItemFromCart"))
+async def delItemFromCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    
+    data = clb.data.split('_',2)
+    user_id,product_id = data[1],data[2]
+
 class NewBeatState(StatesGroup):
     mp3_ask = State()
     wav_ask = State()
@@ -313,6 +380,15 @@ async def stems_ask_callback_handler(message: types.Message, state: FSMContext,i
     
     logger.success(f"New product {name} by {user_id}")
     await message.answer(text= f'Created, go to 📼 My Beats')
+
+@router.message(F.text == "41beat")
+async def beat_handler(product_id):
+    product = await ProductsDatabase.get_product(product_id) 
+    link = f't.me/OctarynBot?start={product_id}'
+    name = product[2]
+    user_id = product[1]
+    await bot.send_message(chat_id = user_id,text=f'<b>{name}</b>\n\n<code>{link}</code>\n(tap to copy link)',parse_mode="HTML",reply_markup=user_keyboards.get_beat_kb(product_id))
+
 
 
 @router.callback_query(lambda clb: clb.data.startswith('beat'))

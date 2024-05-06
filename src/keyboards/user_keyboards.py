@@ -58,9 +58,9 @@ def get_item_in_cart_kb(user_id,product_id,license_name,price,description, licen
 
 
 def get_my_beats_kb(products,current_page:int, total_pages:int)-> InlineKeyboardMarkup:
-    header = []
+    # header = []
     
-    header.append(InlineKeyboardButton(text='➕ New Beat', callback_data="new_beat"))
+    # header.append(InlineKeyboardButton(text='➕ New Beat', callback_data="new_beat"))
     buttons = []
     for product in products:
         name = product[2]
@@ -80,11 +80,12 @@ def get_my_beats_kb(products,current_page:int, total_pages:int)-> InlineKeyboard
     # buttons.append(pagination)
     
     # footer.append(InlineKeyboardButton(text='Удалить все', callback_data="del_products"))
-    back = []
-    back.append(InlineKeyboardButton(text='Back', callback_data="homepage"))
+    # back = []
+    # back.append(InlineKeyboardButton(text='Back', callback_data="homepage"))
     # buttons.append(footer)
-
-    rows= [header] + [[btn] for btn in buttons] + [pagination] +  [back]
+    if total_pages>1:
+        rows=  [[btn] for btn in buttons] + [pagination] 
+    else: rows=  [[btn] for btn in buttons] 
     
     ikb = InlineKeyboardMarkup(inline_keyboard=rows)
     return ikb
@@ -92,9 +93,52 @@ def get_my_beats_kb(products,current_page:int, total_pages:int)-> InlineKeyboard
 
 def get_beat_kb(product_id)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Edit Beat", callback_data=f'editname_{product_id}')],
-        [InlineKeyboardButton(text="Delete Beat", callback_data=f'delproduct_{product_id}')],
+        [InlineKeyboardButton(text=f"Edit Name", callback_data=f'editproductname_{product_id}'),
+        InlineKeyboardButton(text="Delete Beat", callback_data=f'delproduct_0_{product_id}')], 
+        [InlineKeyboardButton(text=f"Licenses", callback_data=f'licenses_{product_id}'),
+        InlineKeyboardButton(text="Files", callback_data=f'files_0_{product_id}')],
         [InlineKeyboardButton(text="Back", callback_data=f'mybeats_0')],
+    ]) 
+    return ikb
+def get_editbeatname_kb(product_id)-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Back", callback_data=f'beat_{product_id}')],
+    ]) 
+    return ikb
+    
+def get_delbeat_kb(product_id)-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Delete", callback_data=f'delproduct_1_{product_id}'),
+        InlineKeyboardButton(text="Back", callback_data=f'beat_{product_id}')],
+    ]) 
+    return ikb
+
+def get_files_kb(product_id)-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Mp3", callback_data=f'showfile_mp3_{product_id}'),
+         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
+        [InlineKeyboardButton(text=f"Wav", callback_data=f'showfile_wav_{product_id}'),
+         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
+        [InlineKeyboardButton(text=f"Stems", callback_data=f'showfile_stems_{product_id}'),
+         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
+        [InlineKeyboardButton(text=f"Preview", callback_data=f'showfile_preview_{product_id}'),
+         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
+    ]) 
+    return ikb
+def get_editfile_kb(product_id)-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Back", callback_data=f'files_{product_id}')]
+    ]) 
+    return ikb
+def get_hide_kb()-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Hide", callback_data=f'hide_file')]
+    ]) 
+    return ikb
+
+def get_newbeat_kb()-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Skip", callback_data=f'skip_stems')]
     ]) 
     return ikb
 
@@ -108,11 +152,6 @@ def get_main_buyer_kb(cart) -> ReplyKeyboardMarkup:
     )
     return rkb
 
-def get_newbeat_kb()-> InlineKeyboardMarkup:
-    ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Skip", callback_data=f'skip_stems')]
-    ]) 
-    return ikb
 def get_main_seller_kb() -> ReplyKeyboardMarkup:
     
     rkb = ReplyKeyboardMarkup(keyboard=[
