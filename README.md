@@ -10,4 +10,4 @@
   <hr/>
 </div>
 
-## Syren Music Market
+## Syren Marketplace
