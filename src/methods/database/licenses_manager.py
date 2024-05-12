@@ -33,9 +33,9 @@ class LicensesDatabase:
                     return -1
                 return result[0]
     @classmethod    
-    async def get_licenses_by_user(cls, user_id:int,license_type:int):
+    async def get_licenses_by_user(cls, user_id:int,license_type:int|None = 5,is_archived:int|None = 0):
         async with aiosqlite.connect("src/databases/licenses.db") as db:
-            async with db.execute(f'SELECT * FROM licenses WHERE user_id = {user_id} AND license_type<={license_type} AND is_archived = 0') as cursor:
+            async with db.execute(f'SELECT * FROM licenses WHERE user_id = {user_id} AND license_type<={license_type} AND is_archived = {is_archived}') as cursor:
                 result = await cursor.fetchall()
                 if not result:
                     return []
@@ -80,7 +80,7 @@ class LicensesDatabase:
 
     @classmethod
     async def set_value(cls, license_id: int, key: Any, new_value: Any):
-        async with aiosqlite.connect("src/databases/licensess.db") as db:
+        async with aiosqlite.connect("src/databases/licenses.db") as db:
             if type(key) is int:
                 await db.execute(f'UPDATE licenses SET {key}={new_value} WHERE license_id={license_id}')
             else:
@@ -108,13 +108,14 @@ class LicensesDatabase:
 #INSERT INTO licenses ("name", "requests", "price_usd", "price_rub", "short_desc", "long_desc") VALUES ("50 Запросов 📕" ,100,1.00,49, "50 Запросов за 49 Рублей","Вы получите 50 запросов для общения с ботом. Запросом может быть как обычное сообщение, так и фото!")
 #INSERT INTO licenses ("name", "requests", "price_usd", "price_rub", "short_desc", "long_desc") VALUES ("200 Запросов 📚" ,200,3.00,149, "200 Запросов за 149 Рублей","Вы получите 200 запросов для общения с ботом. Запросом может быть как обычное сообщение, так и фото!")
   
-   
+    @classmethod
     async def del_license(cls,license_id):        
         async with aiosqlite.connect("src/databases/licenses.db") as db:
             await db.execute(f'DELETE FROM licenses WHERE license_id = {license_id}')
             await db.commit()
-
-    async def del_all_by_user(cls, user_id):
+    
+    @classmethod
+    async def del_all_by_user(cls,user_id):
         async with aiosqlite.connect("src/databases/licenses.db") as db:
             await db.execute(f'DELETE FROM licenses WHERE user_id = {user_id}')
             await db.commit()
@@ -125,9 +126,10 @@ class LicensesDatabase:
     @classmethod
     async def set_default(cls, user_id:int):
         await cls.create_table()
+        await cls.del_all_by_user(user_id=user_id)
         await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=20,feature=1,license_type=1,license_file='file_id contract',)
         await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=35,feature=0,license_type=2,license_file='file_id contract',)
         await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=75,feature=0,license_type=3,license_file='file_id contract',)
         await cls.create_license(user_id=user_id,name="Unlimited",description='MP3 + WAV + STEMS',price=150,feature=0,license_type=4,license_file='file_id contract',)
         await cls.create_license(user_id=user_id,name="Exclusive",description='MP3 + WAV + STEMS',price=500,feature=0,license_type=5,license_file='file_id contract',)
-        
+

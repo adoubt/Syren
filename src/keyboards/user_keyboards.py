@@ -1,17 +1,51 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def get_choose_licenses_kb(user_id,product_id,licenses) -> InlineKeyboardMarkup:
+def get_choose_licenses_kb(user_id,product_id,licenses,disabled) -> InlineKeyboardMarkup:
     buttons = []
-    for license in licenses: 
-         buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"addToCart_{product_id}_{license[0]}_{user_id}")]
+    for license in licenses:
+         if license[0] not in disabled:
+            buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"addToCart_{product_id}_{license[0]}_{user_id}")]
     
     back = []
-    back.append(InlineKeyboardButton(text='Назад', callback_data=f"showcase_{product_id}")) 
+    back.append(InlineKeyboardButton(text='Back', callback_data=f"showcase_{product_id}")) 
     rows= [[btn] for btn in buttons] + [back]
     ikb = InlineKeyboardMarkup(inline_keyboard=rows)
     return ikb   
    
+def get_product_licenses_kb(product_id:int,licenses,disabled)-> InlineKeyboardMarkup:
+    
+    buttons = []
+    for license in licenses:
+        for item in disabled:
+            if license[0] == item[0]:
+                buttons = buttons+[InlineKeyboardButton(text=f'[ ] {license[2]}', callback_data=f"enable_{product_id}_{license[0]}")]
+                break
+        else:
+            buttons = buttons+[InlineKeyboardButton(text=f'[✔️] {license[2]}', callback_data=f"disable_{product_id}_{license[0]}")]
+    back = []
+    back.append(InlineKeyboardButton(text='Back', callback_data=f"beat_{product_id}")) 
+    rows= [[btn] for btn in buttons] + [back]
+    ikb = InlineKeyboardMarkup(inline_keyboard=rows)
+    return ikb   
+
+def get_licenses_kb(licenses)-> InlineKeyboardMarkup:
+    
+    buttons = []
+    for license in licenses: 
+        is_archived,feature = license[9], license[5]
+        meta_preview = ''
+        if is_archived == 1:
+            meta_preview += '🗃'
+        if feature ==1:
+            meta_preview += '⭐️'
+        buttons = buttons+[InlineKeyboardButton(text=f'{meta_preview}{license[2]}', callback_data=f"license_{license[0]}")]
+    footer = []
+    footer.append(InlineKeyboardButton(text='➕ New License', callback_data=f"newlicense")) 
+    footer.append(InlineKeyboardButton(text='♻️ To Default', callback_data=f"setdefaultlicenses"))
+    rows= [[btn] for btn in buttons] + [footer]
+    ikb = InlineKeyboardMarkup(inline_keyboard=rows)
+    return ikb
 
 def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_cart:int,price:int| None = None) -> InlineKeyboardMarkup:
     if already_in_cart ==1:
@@ -42,9 +76,9 @@ def get_homepage_kb(user_id, cart)-> InlineKeyboardMarkup:
 
 def get_settings_kb()-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Сменить язык", callback_data='change_languge')],
-        [InlineKeyboardButton(text="Уведомления", callback_data='notifications')],
-        [InlineKeyboardButton(text="Back", callback_data='homepage')],
+        # [InlineKeyboardButton(text="Change Language", callback_data='change_languge')],
+        [InlineKeyboardButton(text="Notification", callback_data='notifications')],
+        
     ]) 
     return ikb
 
@@ -93,10 +127,11 @@ def get_my_beats_kb(products,current_page:int, total_pages:int)-> InlineKeyboard
 
 def get_beat_kb(product_id)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Edit Name", callback_data=f'editproductname_{product_id}'),
-        InlineKeyboardButton(text="Delete Beat", callback_data=f'delproduct_0_{product_id}')], 
-        [InlineKeyboardButton(text=f"Licenses", callback_data=f'licenses_{product_id}'),
-        InlineKeyboardButton(text="Files", callback_data=f'files_0_{product_id}')],
+        [InlineKeyboardButton(text=f"Edit Name", callback_data=f'editproductname_{product_id}')],
+        [InlineKeyboardButton(text="Files", callback_data=f'files_0_{product_id}'),
+        InlineKeyboardButton(text=f"Licenses", callback_data=f'licenses_{product_id}')],
+        [InlineKeyboardButton(text="Delete Beat", callback_data=f'delproduct_0_{product_id}')], 
+        
         [InlineKeyboardButton(text="Back", callback_data=f'mybeats_0')],
     ]) 
     return ikb
@@ -118,27 +153,43 @@ def get_files_kb(product_id)-> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=f"Mp3", callback_data=f'showfile_mp3_{product_id}'),
          InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
         [InlineKeyboardButton(text=f"Wav", callback_data=f'showfile_wav_{product_id}'),
-         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
+         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_wav_{product_id}')],
         [InlineKeyboardButton(text=f"Stems", callback_data=f'showfile_stems_{product_id}'),
-         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
+         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_stems_{product_id}')],
         [InlineKeyboardButton(text=f"Preview", callback_data=f'showfile_preview_{product_id}'),
-         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
+         InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_preview_{product_id}')],
+        [InlineKeyboardButton(text=f"Back", callback_data=f'beat_{product_id}')]
     ]) 
     return ikb
+
 def get_editfile_kb(product_id)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"Back", callback_data=f'files_{product_id}')]
     ]) 
     return ikb
-def get_hide_kb()-> InlineKeyboardMarkup:
+
+def get_hide_file_kb()-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"Hide", callback_data=f'hide_file')]
     ]) 
     return ikb
 
+def get_edit_file_back_kb(product_id)-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Back", callback_data=f'files_{product_id}')]
+    ]) 
+    return ikb
+
 def get_newbeat_kb()-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Skip", callback_data=f'skip_stems')]
+        [InlineKeyboardButton(text=f"Skip", callback_data=f'skip_stems')],
+        [InlineKeyboardButton(text=f"Cancel", callback_data=f'cancel')]
+    ]) 
+    return ikb
+
+def get_cancel_kb()-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Cancel", callback_data=f'cancel')]
     ]) 
     return ikb
 
@@ -158,16 +209,16 @@ def get_main_seller_kb() -> ReplyKeyboardMarkup:
         [KeyboardButton(text='🏠 Home',callback_data='homepage'),
         KeyboardButton(text='➕ New Beat')],
         [KeyboardButton(text='📼 My Beats', callback_data='mybeats_0'),
-        KeyboardButton(text='⚙️ Settings', callback_data='settings_1')],
-        [KeyboardButton(text='🌏 Buy Beats', callback_data='buyer')]],resize_keyboard=True
+        KeyboardButton(text='📂 My Licenses')],
+        [KeyboardButton(text='⚙️ Settings', callback_data='settings_1'),
+         KeyboardButton(text='🌏 Buy Beats', callback_data='buyer')]],resize_keyboard=True
     )
     return rkb
 
 def get_cart_buyer_kb(total) -> ReplyKeyboardMarkup:
     
     rkb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text=f' Pay ${total}'),
-         KeyboardButton(text='🔙 Back')],
-        [KeyboardButton(text='🔙 Back', )]],resize_keyboard=True
+        [KeyboardButton(text=f' Pay ${total}')],
+        [KeyboardButton(text='Back')]],resize_keyboard=True
     )
     return rkb
