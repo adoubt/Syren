@@ -15,7 +15,7 @@ from src.methods.database.users_manager import UsersDatabase
 from src.methods.database.products_manager import ProductsDatabase
 from src.methods.database.licenses_manager import LicensesDatabase
 from src.methods.database.licenses_products_manager import LicensesProductsDatabase
-from src.methods.database.carts_manager import CartsDatabase
+from src.methods.database.wishlists_manager import WishlistsDatabase
 # from src.methods.payment import aaio_manager
 # from src.methods.payment.payment_processing import ProcessOrder
 
@@ -28,24 +28,28 @@ from src.handlers.decorators import new_seller_handler, new_user_handler
 @router.message(Command("start"))
 @new_user_handler
 async def start_handler(message: Message, is_clb=False, product_id:int| None=None,**kwargs):
-    await CartsDatabase.create_table()
+    await WishlistsDatabase.create_table()
+    
+
     if is_clb:
         user_id = message.chat.id
-        cart_count = await CartsDatabase.get_cart_count(user_id)
-        await message.edit_text(text='Welcome ', reply_markup = user_keyboards.get_main_buyer_kb(cart_count))
-        # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-    else:
+        # wishlist_count = await WishlistsDatabase.get_wishlist_count(user_id)
+        # await message.answer(text= text,reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count))
+    #     # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+    if not is_clb:
+        text = 'Welcome, here '
         user_id = message.from_user.id
-        cart_count = await CartsDatabase.get_cart_count(user_id)
+        wishlist_count = await WishlistsDatabase.get_wishlist_count(user_id)
         # await message.delete()
-        await message.answer(text='Welcome', reply_markup = user_keyboards.get_main_buyer_kb(cart_count))
+        await message.answer(text=text, reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count))
    
     
    
 
     if message.text != "/start" and message.text!="🌏 Buy Beats":
-        data = message.text.split(" ",1)[-1]
-        product_id = int(data)
+        if product_id is None:
+            data = message.text.split(" ",1)[-1]
+            product_id = int(data)
         product = await ProductsDatabase.get_product(product_id)
         # license_type=5
         # stems_link = product[7]
@@ -68,10 +72,13 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
         if mp3_link == -1:
             await message.answer("404..")
         else:
-            already_in_cart = 0
-            if await CartsDatabase.get_value('product_id',user_id) == product_id:
-                already_in_cart = 1
-            await message.answer_audio(audio=mp3_link,  reply_markup=user_keyboards.get_showcase_kb(product_id=product_id, price=featured_price,is_sold=is_sold,channel=channel,already_in_cart=already_in_cart), caption = '')
+            already_in_wishlist = 0
+            if await WishlistsDatabase.get_value('product_id',user_id) == product_id:
+                already_in_wishlist = 1
+            if is_clb:
+                await message.edit_caption( reply_markup=user_keyboards.get_showcase_kb(product_id=product_id, price=featured_price,is_sold=is_sold,channel=channel,already_in_wishlist=already_in_wishlist), caption = '')
+            else: 
+                await message.answer_audio(audio=mp3_link,  reply_markup=user_keyboards.get_showcase_kb(product_id=product_id, price=featured_price,is_sold=is_sold,channel=channel,already_in_wishlist=already_in_wishlist), caption = '')
     # if start_photo =="":
     #     await message.answer(text = text, parse_mode="HTML")
     # else:
@@ -92,9 +99,9 @@ async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 async def homepage_handler(message: Message, is_clb=False, **kwargs):
   
     user_id = message.from_user.id
-    await CartsDatabase.create_table()
-    cart_count = await CartsDatabase.get_cart_count(user_id)
-    await message.answer(text = f'Лучший маркетплейс музыки.\n Подписывайтесь на наш канал (линк).',reply_markup = user_keyboards.get_homepage_kb(user_id,cart_count))
+    await WishlistsDatabase.create_table()
+    wishlist_count = await WishlistsDatabase.get_wishlist_count(user_id)
+    await message.answer(text = f'Лучший маркетплейс музыки.\n Подписывайтесь на наш канал (линк).',reply_markup = user_keyboards.get_homepage_kb(user_id,wishlist_count))
 
 @router.message(F.text == "⚙️ Settings")
 @new_user_handler
@@ -114,6 +121,25 @@ async def seller_handler(message: Message, is_clb=False, **kwargs):
 @router.message(F.text == "🌏 Buy Beats")
 async def buyer_handler(message: Message, is_clb=False, **kwargs):
     await start_handler(message)
+
+@router.message(F.text == "🤍 Wishlist")
+@new_user_handler
+async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
+    user_id = message.from_user.id
+    if await WishlistsDatabase.get_wishlist_count(user_id)==0:
+        await WishlistsDatabase.create_table()
+        await message.answer(text = "Your Wishlist is Empty")
+        return
+
+    wishlist = await WishlistsDatabase.get_wishlist_by_user(user_id)
+
+    for item in wishlist:
+        product_id = item[1]
+        product = await ProductsDatabase.get_product(product_id)
+        #Лишний раз лезу в бд
+        mp3_link = product[5]
+        await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
+
 
 @router.message(F.text == "📼 My Beats")
 @new_user_handler
@@ -203,6 +229,7 @@ async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     data = clb.data.split('_',1)
     product_id = data[1]
     await start_handler(clb.message, is_clb=True,product_id = product_id)
+    await clb.answer()
 
 @router.callback_query(lambda clb: clb.data.startswith("choose_license_"))
 async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
@@ -224,26 +251,40 @@ async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs)
         license_type=0
     licenses = await LicensesDatabase.get_licenses_by_user(seller, license_type)
     await LicensesProductsDatabase.create_table()
-    disabled = await LicensesProductsDatabase.get_disabled()
+    disabled = await LicensesProductsDatabase.get_disabled(product_id)
     await clb.message.edit_caption(caption = 'Choose license', reply_markup = user_keyboards.get_choose_licenses_kb(user_id,product_id,licenses,disabled))
 
 
-@router.callback_query(lambda clb: clb.data.startswith("addToCart"))
-async def addToCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+@router.callback_query(lambda clb: clb.data.startswith("addTowishlist"))
+async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',3)
-    product_id,user_id,license_id = data[1],data[3],data[2]
+    user_id,product_id, = data[1],data[2]
     product = await ProductsDatabase.get_product(product_id)
-    await CartsDatabase.create_table()
-    await CartsDatabase.add_to_cart(user_id,product_id,license_id)
+    await WishlistsDatabase.create_table()
+    await WishlistsDatabase.add_to_wishlist(user_id,product_id)
     
     seller, is_sold= product[1],product[9]
     channel = await UsersDatabase.get_value(seller,'channel')
-    await clb.message.edit_caption(caption = 'Added To Cart ✔', reply_markup = user_keyboards.get_showcase_kb(product_id=product_id,is_sold=is_sold,channel=channel,already_in_cart=1))
+    await clb.message.edit_caption(caption = 'Added To wishlist ✔', reply_markup = user_keyboards.get_showcase_kb(product_id=product_id,is_sold=is_sold,channel=channel,already_in_wishlist=1))
 
-# @router.message(F.text.startswith("🛒 Cart"))
+
+# @router.callback_query(lambda clb: clb.data.startswith("addTowishlist"))
+# async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    
+#     data = clb.data.split('_',3)
+#     product_id,user_id, = data[1],data[3],data[2]
+#     product = await ProductsDatabase.get_product(product_id)
+#     await WishlistsDatabase.create_table()
+#     await WishlistsDatabase.add_to_wishlist(user_id,product_id,license_id)
+    
+#     seller, is_sold= product[1],product[9]
+#     channel = await UsersDatabase.get_value(seller,'channel')
+#     await clb.message.edit_caption(caption = 'Added To wishlist ✔', reply_markup = user_keyboards.get_showcase_kb(product_id=product_id,is_sold=is_sold,channel=channel,already_in_wishlist=1))
+
+# @router.message(F.text.startswith("🛒 wishlist"))
 # @new_user_handler
-# async def cart_handler(message: Message, is_clb=False, **kwargs):
+# async def wishlist_handler(message: Message, is_clb=False, **kwargs):
 #     if is_clb:
 #         user_id = message.chat.id
 #         # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
@@ -251,14 +292,14 @@ async def addToCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 #         # await message.delete()
 #         user_id = message.from_user.id
     
-#     if await CartsDatabase.get_cart_count(user_id)==0:
-#         await CartsDatabase.create_table()
-#         await message.edit_text(text = "Your Cart is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
+#     if await WishlistsDatabase.get_wishlist_count(user_id)==0:
+#         await WishlistsDatabase.create_table()
+#         await message.edit_text(text = "Your wishlist is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
 #         return
 
-#     cart = await CartsDatabase.get_cart_by_user(user_id)
+#     wishlist = await WishlistsDatabase.get_wishlist_by_user(user_id)
 
-#     for item in cart:
+#     for item in wishlist:
 #         license_id = item[2]
 #         license = await LicensesDatabase.get_license(license_id)
 #         license_name,price,description, license_file = license[2],license[4],license[3],license[7]
@@ -267,25 +308,35 @@ async def addToCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 #         mp3_link = product
 #         mp3_link = product[5]
 #         seller = product[1]
-#         await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_cart_kb(user_id,product_id,license_name,price,description, license_file), caption = f'{license_name}\nYou Will Get {description}\nTotal: {price} USD')
+#         await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id,license_name,price,description, license_file), caption = f'{license_name}\nYou Will Get {description}\nTotal: {price} USD')
 
 
 
-# @router.callback_query(lambda clb: clb.data == 'cart')
+# @router.callback_query(lambda clb: clb.data == 'wishlist')
 # @new_user_handler
-# async def cart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-#     await cart_handler(clb.message, is_clb=True)
+# async def wishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+#     await wishlist_handler(clb.message, is_clb=True)
 
 
-@router.callback_query(lambda clb: clb.data.startswith("delItemFromCart"))
-async def delItemFromCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+@router.callback_query(lambda clb: clb.data.startswith("delItemFromwishlist"))
+async def delItemFromwishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',2)
     user_id,product_id = data[1],data[2]
-    await CartsDatabase.del_from_cart(user_id,product_id)
-    if await CartsDatabase.get_cart_count(user_id)==0:
-        await CartsDatabase.create_table()
-        await clb.message.edit_caption(text = "Your Cart is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
+    await WishlistsDatabase.del_from_wishlist(user_id,product_id)
+    if await WishlistsDatabase.get_wishlist_count(user_id)==0:
+        await WishlistsDatabase.create_table()
+        await clb.message.edit_caption(text = "Your wishlist is Empty")
+
+@router.callback_query(lambda clb: clb.data.startswith("delItemFromwishlist"))
+async def delItemFromwishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    
+    data = clb.data.split('_',2)
+    user_id,product_id = data[1],data[2]
+    await WishlistsDatabase.del_from_wishlist(user_id,product_id)
+    if await WishlistsDatabase.get_wishlist_count(user_id)==0:
+        await WishlistsDatabase.create_table()
+        await clb.message.edit_caption(text = "Your wishlist is Empty")
 
 
 
@@ -440,8 +491,8 @@ async def name_ask_callback_handler(message: types.Message, state: FSMContext, *
     await beat_clb_handler(clb,product_id)
     # await beat_handler(product_id)
 
-@router.callback_query(lambda clb: clb.data.startswith("delItemFromCart"))
-async def delItemFromCart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+@router.callback_query(lambda clb: clb.data.startswith("delItemFromwishlist"))
+async def delItemFromwishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',2)
     user_id,product_id = data[1],data[2]
