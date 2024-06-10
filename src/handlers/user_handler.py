@@ -19,11 +19,19 @@ from src.methods.database.wishlists_manager import WishlistsDatabase
 # from src.methods.payment import aaio_manager
 # from src.methods.payment.payment_processing import ProcessOrder
 
+
 router =  Router()
 
 from src.misc import bot,bot_id, super_admin,password
 from src.handlers.decorators import new_seller_handler, new_user_handler
 
+import pytonconnect.exceptions
+from pytoniq_core import Address
+from pytonconnect import TonConnect
+
+
+from src.methods.payment.TON.messages import get_comment_message
+from src.methods.payment.TON.connector import get_connector
 
 @router.message(Command("start"))
 @new_user_handler
@@ -44,7 +52,8 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
         await message.answer(text=text, reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count))
    
     
-   
+    connector = get_connector(chat_id)
+    connected = await connector.restore_connection()
 
     if message.text != "/start" and message.text!="🌏 Buy Beats":
         if product_id is None:

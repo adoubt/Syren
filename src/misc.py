@@ -3,6 +3,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 
 token="7167825365:AAEQhLkT88eAnJa_a5IcvH1FfnMyD32QEWk"
+MANIFEST_URL = 'MANIFEST_URL'
 super_admin = "6279510886"
 password = '1234' # /set_admin{password}
 
