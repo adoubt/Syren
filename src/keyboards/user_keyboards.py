@@ -34,19 +34,68 @@ def get_licenses_kb(licenses)-> InlineKeyboardMarkup:
     
     buttons = []
     for license in licenses: 
-        is_archived,feature = license[9], license[5]
+        is_archived,feature, is_active = license[9], license[5], license[11]
         meta_preview = ''
         if is_archived == 1:
             meta_preview += '🗃'
         if feature ==1:
             meta_preview += '⭐️'
-        buttons = buttons+[InlineKeyboardButton(text=f'{meta_preview}{license[2]}', callback_data=f"license_{license[0]}")]
+        if is_active !=1:
+            meta_preview +='💤'
+        buttons = buttons+[InlineKeyboardButton(text=f'{meta_preview}{license[2]}', callback_data=f"mylicense_{license[0]}")]
     footer = []
     footer.append(InlineKeyboardButton(text='➕ New License', callback_data=f"newlicense")) 
     footer.append(InlineKeyboardButton(text='♻️ To Default', callback_data=f"setdefaultlicenses"))
     rows= [[btn] for btn in buttons] + [footer]
     ikb = InlineKeyboardMarkup(inline_keyboard=rows)
     return ikb
+
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+def get_mylicense_kb(license) -> InlineKeyboardMarkup:
+    license_id = license[0]
+    is_archived, feature, is_active, price, file_id, license_type = license[9], license[5], license[11], license[4], license[8], license[6]
+
+    name_btn = InlineKeyboardButton(text="Edit name", callback_data=f"licenseedit_name_{license_id}")
+    desc_btn = InlineKeyboardButton(text="Description", callback_data=f"licenseedit_desc_{license_id}")
+
+    license_texts = {
+        0: "Edit license type",
+        1: "MP3",
+        2: "MP3, WAV",
+    }
+    type_text = license_texts.get(license_type, "MP3, WAV, STEMS")
+    type_btn = InlineKeyboardButton(text=type_text, callback_data=f"licenseedit_type_{license_id}")
+
+    active_text = "Activate" if is_active != 1 else "💤 Deactivate"
+    active_btn = InlineKeyboardButton(text=active_text, callback_data=f"licenseedit_active_{license_id}_{1 if is_active != 1 else 0}")
+
+    price_text = "Edit price" if price is None else str(price)
+    price_btn = InlineKeyboardButton(text=price_text, callback_data=f"licenseedit_price_{license_id}")
+
+    feature_text = "Set as featured⭐️" if feature != 1 else "Unset as featured"
+    feature_btn = InlineKeyboardButton(text=feature_text, callback_data=f"licenseedit_feature_{license_id}_{1 if feature != 1 else 0}")
+
+    contract_btns = [
+        InlineKeyboardButton(text="Contract", callback_data=f"licenseedit_showfile_{license_id}") if file_id else None,
+        InlineKeyboardButton(text="Edit", callback_data=f"licenseedit_uploadfile_{license_id}")
+    ]
+
+    delete_btn = InlineKeyboardButton(text="Delete", callback_data=f"licenseedit_delete_{license_id}")
+    back_btn = InlineKeyboardButton(text="Back", callback_data="mylicenses")
+
+    rows = [
+        [active_btn],
+        [name_btn, desc_btn],
+        [type_btn],
+        [price_btn],
+        [feature_btn],
+        [btn for btn in contract_btns if btn is not None],
+        [delete_btn],
+        [back_btn],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlist:int,price:int| None = None) -> InlineKeyboardMarkup:
     # if already_in_cart ==1:
@@ -57,7 +106,6 @@ def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlis
         wishlist_btn = [InlineKeyboardButton(text=f'Go To wishlist', callback_data='cart')]
     else:
         wishlist_btn = [InlineKeyboardButton(text=f'➕ Add to Wishlist', callback_data=f'choose_license_{product_id}')]
-
 
 
     channel_btn = [InlineKeyboardButton(text=f'Channel', url=channel)]

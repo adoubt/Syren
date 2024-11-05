@@ -52,7 +52,7 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
         await message.answer(text=text, reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count))
    
     
-    connector = get_connector(chat_id)
+    connector = get_connector(user_id)
     connected = await connector.restore_connection()
 
     if message.text != "/start" and message.text!="🌏 Buy Beats":
@@ -177,40 +177,47 @@ async def mybeats_handler(message: Message, is_clb=False,current_page:int|None =
 
 @router.message(F.text == "📂 My Licenses")
 @new_user_handler
-async def mylicenses_handler(message: Message, is_clb=False,**kwargs):
-    if is_clb:
-        user_id = message.chat.id
-        # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-    else:
-        # await message.delete()
-        user_id = message.from_user.id
-    licenses = await LicensesDatabase.get_licenses_by_user(user_id)
-    await message.answer(text = 'Licenses:',reply_markup = user_keyboards.get_licenses_kb(licenses))
+async def mylicenses_handler(message: Message, is_clb=False, **kwargs):
+    user_id = message.chat.id if is_clb else message.from_user.id
+    licenses = await LicensesDatabase.get_licenses_by_user(user_id=user_id, active_only=0)
 
-@router.message(F.text == "📼 My Beats")
+    text = "Licenses:"
+    keyboard = user_keyboards.get_licenses_kb(licenses)
+
+    if is_clb:
+        await message.edit_text(text=text, reply_markup=keyboard)
+    else:
+        await message.answer(text=text, reply_markup=keyboard)
+
+
+@router.callback_query(lambda clb: clb.data == 'mylicenses')
 @new_user_handler
-async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
-    if is_clb:
-        user_id = message.chat.id
-        # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-    else:
-        # await message.delete()
-        user_id = message.from_user.id
-    total_beats = await ProductsDatabase.get_count_by_user(user_id)
-    if total_beats == 0:
-        await message.answer('Nothing uploaded yet, go to ➕ New Beat')
-        return
-    total_pages = (total_beats //10) + 1
-    if current_page >= total_pages:
-        current_page = total_pages
-    if current_page < 0:
-        current_page = 0
+async def mylicenses_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await mylicenses_handler(clb.message, is_clb=True)
+# @router.message(F.text == "📼 My Beats")
+# @new_user_handler
+# async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
+#     if is_clb:
+#         user_id = message.chat.id
+#         # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
+#     else:
+#         # await message.delete()
+#         user_id = message.from_user.id
+#     total_beats = await ProductsDatabase.get_count_by_user(user_id)
+#     if total_beats == 0:
+#         await message.answer('Nothing uploaded yet, go to ➕ New Beat')
+#         return
+#     total_pages = (total_beats //10) + 1
+#     if current_page >= total_pages:
+#         current_page = total_pages
+#     if current_page < 0:
+#         current_page = 0
     
-    beats = await ProductsDatabase.get_all_by_user(user_id, current_page*10)
-    if is_clb:
-        await message.edit_text(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
-    else:
-        await message.answer(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
+#     beats = await ProductsDatabase.get_all_by_user(user_id, current_page*10)
+#     if is_clb:
+#         await message.edit_text(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
+#     else:
+#         await message.answer(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
 
 
 @router.callback_query(lambda clb: clb.data == 'start')
@@ -245,7 +252,7 @@ async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs)
 
     data = clb.data.split('_',2)
     user_id = clb.from_user.id
-    product_id = data[2]
+    product_id = data[1]
     product = await ProductsDatabase.get_product(product_id)
     license_type=5
     seller = product[1]
@@ -268,7 +275,7 @@ async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs)
 async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',3)
-    user_id,product_id, = data[1],data[2]
+    user_id,product_id, = data[1],data[1]
     product = await ProductsDatabase.get_product(product_id)
     await WishlistsDatabase.create_table()
     await WishlistsDatabase.add_to_wishlist(user_id,product_id)
@@ -282,7 +289,7 @@ async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 # async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
 #     data = clb.data.split('_',3)
-#     product_id,user_id, = data[1],data[3],data[2]
+#     product_id,user_id, = data[1],data[3],data[1]
 #     product = await ProductsDatabase.get_product(product_id)
 #     await WishlistsDatabase.create_table()
 #     await WishlistsDatabase.add_to_wishlist(user_id,product_id,license_id)
@@ -331,7 +338,7 @@ async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 async def delItemFromwishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',2)
-    user_id,product_id = data[1],data[2]
+    user_id,product_id = data[1],data[1]
     await WishlistsDatabase.del_from_wishlist(user_id,product_id)
     if await WishlistsDatabase.get_wishlist_count(user_id)==0:
         await WishlistsDatabase.create_table()
@@ -341,7 +348,7 @@ async def delItemFromwishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kw
 async def delItemFromwishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',2)
-    user_id,product_id = data[1],data[2]
+    user_id,product_id = data[1],data[1]
     await WishlistsDatabase.del_from_wishlist(user_id,product_id)
     if await WishlistsDatabase.get_wishlist_count(user_id)==0:
         await WishlistsDatabase.create_table()
@@ -393,7 +400,7 @@ async def files_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 @new_user_handler
 async def showfile_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     data = clb.data.split('_',2)
-    product_id = int(data[2])
+    product_id = int(data[1])
     product = await ProductsDatabase.get_product(product_id)
     preview_link,mp3_link,wav_link,stems_link = product[4],product[5],product[6],product[7]
     if data[1] == 'mp3':
@@ -412,7 +419,7 @@ class EditFile(StatesGroup):
 @new_user_handler
 async def showfile_clb_handler(clb: CallbackQuery, state = FSMContext, is_clb=False, **kwargs):
     data = clb.data.split('_',2)
-    product_id = int(data[2])
+    product_id = int(data[1])
     await state.set_data([product_id,data[1]])
     if data[1] == 'mp3':
         text = 'Upload or forward .MP3'
@@ -504,7 +511,7 @@ async def name_ask_callback_handler(message: types.Message, state: FSMContext, *
 async def delItemFromwishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     
     data = clb.data.split('_',2)
-    user_id,product_id = data[1],data[2]
+    user_id,product_id = data[1],data[1]
 
 class NewBeatState(StatesGroup):
     mp3_ask = State()
@@ -553,7 +560,7 @@ async def wav_ask_callback_handler(message: types.Message, state: FSMContext, **
     data = await state.get_data() 
     user_id = data[0]
     performer = data[1]
-    title = data[2]
+    title = data[1]
     name = data[3]
     mp3_link = data[4]
     wav_link = message.document.file_id
@@ -573,7 +580,7 @@ async def stems_ask_callback_handler(message: types.Message, state: FSMContext,i
     data = await state.get_data() 
     user_id = data[0]
     performer = data[1]
-    title = data[2]
+    title = data[1]
     name = data[3]
     mp3_link = data[4]
     wav_link = data[5]
@@ -619,6 +626,79 @@ async def newlicense_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     await LicensesDatabase.create_license(user_id)
     await mylicenses_handler(clb.message, is_clb=True)    
 
+@router.callback_query(lambda clb: clb.data.startswith('mylicense_'))
+async def mylicense_clb_handler(clb: CallbackQuery, license_id:int|None=None,is_clb=False, **kwargs):
+    if license_id is None:
+        data = clb.data.split('_',1)
+        license_id = int(data[1])
+    license = await LicensesDatabase.get_license(license_id) 
+    is_archived,feature, is_active = license[9], license[5], license[11]
+    meta_preview = ''
+    if is_archived == 1:
+        meta_preview += '🗃'
+    if feature ==1:
+        meta_preview += '⭐️'
+    if is_active !=1:
+        meta_preview +='💤'
+    await clb.message.edit_text(text=f'{meta_preview}<b>{license[2]}</b>',parse_mode="HTML",reply_markup=user_keyboards.get_mylicense_kb(license))
 
+class LicenseEdit(StatesGroup):
+    name_ask = State()
+    desc_ask = State()
+    price_ask = State()
+    upload_ask = State()
 
+@router.callback_query(lambda clb: clb.data.startswith('licenseedit'))
+async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False, state = FSMContext, **kwargs):
+    
+    user_id = clb.message.chat.id
+    data = clb.data.split('_',3)
+    license_id = data[2]
+    if data[1] == 'name':
+        await state.set_state(LicenseEdit.name_ask)
+        await clb.message.edit_text(text = 'Imput new name',reply_markup=user_keyboards.get_cancel_kb())
+    elif data[1] == 'decs':
+        await state.set_state(LicenseEdit.desc_ask)
+        await clb.message.edit_text(text = 'Imput new description',reply_markup=user_keyboards.get_cancel_kb())
+    elif data[1] == 'type': 
+        pass
+    
+    elif data[1] == 'active':
+        r = await LicensesDatabase.toggle_license_active(license_id)
+        if r ==-1:
+            await clb.message.edit_text(text = 'Error: Some fields are empty')
+        else:
+            await mylicense_clb_handler(clb,license_id)
+    elif data[1] == 'price':
+        await state.set_state(LicenseEdit.price_ask)
+        await clb.message.edit_text(text = 'Imput new price',reply_markup=user_keyboards.get_cancel_kb())
+        
+    elif data[1] == 'feature':
+        if data[3] == '1':
+            await LicensesDatabase.set_featured_license(user_id, license_id)
+        else:
+            await LicensesDatabase.set_value(license_id,"feature",0)
+        await mylicense_clb_handler(clb,license_id)
 
+    elif data[1] == 'showfile':
+        license= await LicensesDatabase.get_license(license_id)
+        license_file = license[8]
+        await clb.message.answer_document(document = license_file,reply_markup =user_keyboards.get_hide_file_kb())
+    elif data[1] == 'uploadfile':
+        await state.set_state(LicenseEdit.upload_ask)
+        await state.set_data([license_id])
+        await clb.message.edit_text(text = 'Upload or forward yor contract file',reply_markup=user_keyboards.get_cancel_kb())
+    elif data[1] == 'delete': pass   
+
+@router.message(LicenseEdit.upload_ask)
+async def upload_ask_callback_handler(message: types.Message, state: FSMContext, **kwargs):
+    data = await state.get_data() 
+    license_id= data[0]
+    if message.document is None:
+        await state.clear()
+        return
+    license_file = message.document.file_id
+    
+    await state.clear()
+    await LicensesDatabase.set_value(license_id,"license_file",license_file)
+    await message.answer(text=f'Updated!',reply_markup =user_keyboards.get_hide_file_kb())
