@@ -15,7 +15,7 @@ It's designed to be easy to use, accessible to creators, and focused on fast tra
 ---
 
 ## 💡 I Need Help From These Specialists:
-- **Developer** 🖥️ (Help improve and optimize the code.)
+- **Python Dev** 🖥️ (Help improve and optimize the code.)
 - **Marketer** 📈 (User acquisition & promotion strategy.)
 - **Designer** 🎨 (UI/UX design and visual branding.)
 - **Legal Support** ⚖️ (Contracts, intellectual property protection.)
@@ -26,7 +26,8 @@ It's designed to be easy to use, accessible to creators, and focused on fast tra
 ## 📞 Contact Me
 - Telegram: [@vietnolog](https://t.me/vietnolog)
 - Email: [mgmtsash@gmail.com](mailto:mgmtsash@gmail.com)
-
+- Instagram [@prodmeta](https://www.instagram.com/prodmeta)
+- @adoubt
 ---
 
 ## 🔖 Tags
