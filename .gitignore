@@ -1,9 +1,7 @@
 .env
 # Игнорировать файлы баз данных
-*.sqlite3
-*.db
-*.sqlite
+databases/*.db
 # Игнорировать временные файлы
-*.log
+logs/*.log
 *.bak
 *.tmp
