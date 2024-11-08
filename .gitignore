@@ -1,7 +1,7 @@
 .env
 # Игнорировать файлы баз данных
-databases/*.db
+src/databases/*.db
 # Игнорировать временные файлы
-logs/*.log
+src/logs/*.log
 *.bak
 *.tmp
