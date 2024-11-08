@@ -57,7 +57,24 @@ class ProductsDatabase:
                 if not result:
                     return -1
                 return result
-            
+    
+    @classmethod
+    async def get_all_by_user(cls, user_id: int, offset: int):
+        async with aiosqlite.connect("src/databases/products.db") as db:
+            async with db.execute(f'SELECT * FROM products WHERE user_id = {user_id} LIMIT 10 OFFSET {offset}') as cursor:
+                result = await cursor.fetchall()
+                if not result:
+                    return []
+                return result
+
+    @classmethod
+    async def get_count_by_user(cls, user_id: int):
+        async with aiosqlite.connect("src/databases/products.db") as db:
+            async with db.execute(f'SELECT COUNT(*) FROM products WHERE user_id = {user_id}') as cursor:
+                result = await cursor.fetchone()
+                if not result:
+                    return -1
+                return result[0]
 
     @classmethod
     async def set_value(cls, product_id: int, key: Any, new_value: Any):
