@@ -1,12 +1,12 @@
-from src.misc import  merchant_id, secret
+from src.misc import  MERCHANT_ID, SECRET
 from loguru import logger
 import aiohttp, random, hashlib
 from urllib.parse import urlencode
 from typing import Optional, Tuple
 
 async def get_pay_link(amount : float,
-                        merchant_id: Optional[str]= merchant_id,
-                        secret:  Optional[str]= secret,
+                        merchant_id: Optional[str]= MERCHANT_ID,
+                        secret:  Optional[str]= SECRET,
                         desc :Optional[str] = '',
                         currency :Optional[str]= 'RUB') -> Tuple[str, str]:
     

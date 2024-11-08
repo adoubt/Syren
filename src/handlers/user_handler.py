@@ -22,7 +22,7 @@ from src.methods.database.wishlists_manager import WishlistsDatabase
 
 router =  Router()
 
-from src.misc import bot,bot_id, super_admin,password
+from src.misc import bot,bot_id, SUPER_ADMIN,PASSWORD
 from src.handlers.decorators import new_seller_handler, new_user_handler
 
 import pytonconnect.exceptions
