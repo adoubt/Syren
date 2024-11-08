@@ -26,8 +26,9 @@ It's designed to be easy to use, accessible to creators, and focused on fast tra
 ## 📞 Contact Me
 - Telegram: [@vietnolog](https://t.me/vietnolog)
 - Email: [mgmtsash@gmail.com](mailto:mgmtsash@gmail.com)
-- Instagram [@prodmeta](https://www.instagram.com/prodmeta)
-- @adoubt
+- Instagram: [@prodmeta](https://www.instagram.com/prodmeta)
+- Github:[@adoubt](https://github.com/adoubt)
+
 ---
 
 ## 🔖 Tags
