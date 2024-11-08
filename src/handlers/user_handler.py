@@ -252,7 +252,7 @@ async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs)
 
     data = clb.data.split('_',2)
     user_id = clb.from_user.id
-    product_id = data[1]
+    product_id = data[2]
     product = await ProductsDatabase.get_product(product_id)
     license_type=5
     seller = product[1]
