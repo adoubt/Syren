@@ -2,7 +2,7 @@
 [**Current Link**](https://t.me/OctarynBot)
 
 Hello World! 👋  
-I'm building the next **Top 1 Music Marketplace** in the world, powered by the Telegram Bot API.  
+I'm building the next **Top 1 Music Marketplace** in the world, powered by [TON](https://docs.ton.org/v3/guidelines/get-started-with-ton) and [Telegram Bot API](https://core.telegram.org/bots/api).  
 This project is **open-source** and you're invited to follow along as I develop it! Feel free to contribute, give feedback, or just watch the magic unfold. I'm doing this solo as TRUE INDIE-DEV 
 
 --- 
