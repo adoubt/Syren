@@ -14,10 +14,10 @@ def get_choose_licenses_kb(user_id,product_id,licenses,disabled) -> InlineKeyboa
     ikb = InlineKeyboardMarkup(inline_keyboard=rows)
     return ikb   
    
-def get_paystars_kb(amount):
+def get_paystars_kb(amount)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f'Pay {amount}⭐️', pay=True)],
-        [InlineKeyboardButton(text="donate-button-cancel",callback_data="paystars_cancel")]
+        [InlineKeyboardButton(text="cancel",callback_data="paystarscancel")]
         ]) 
     return ikb
 def get_product_licenses_kb(product_id:int,licenses,disabled)-> InlineKeyboardMarkup:
@@ -128,6 +128,14 @@ def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlis
         channel_btn,
     ]) 
     return ikb
+
+# def get_payment_method_kb()-> InlineKeyboardMarkup:
+#     ikb = InlineKeyboardMarkup(inline_keyboard=[
+#         [InlineKeyboardButton(text='', callback_data='')],
+#         [InlineKeyboardButton(text='', callback_data='')],
+#         [InlineKeyboardButton(text='', callback_data='')]
+#     ]) 
+#     return ikb
 
 def get_homepage_kb(user_id, cart)-> InlineKeyboardMarkup:
     cart_view = 'Cart'

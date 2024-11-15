@@ -706,17 +706,24 @@ async def upload_ask_callback_handler(message: types.Message, state: FSMContext,
 
 
 #Stars_payment
+   
+@router.callback_query(F.data == "paystarscancel")
+async def on_paystars_cancel(callback: CallbackQuery, **kwargs):
+    # await callback.answer(l10n.format_value("donate-cancel-payment"))
+
+    await callback.message.delete()
 
 @router.callback_query(lambda clb: clb.data.startswith('paystars'))
-async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False,  **kwargs):
+async def paystars_clb_handler(clb: CallbackQuery,is_clb=False,  **kwargs):
     
     user_id = clb.message.chat.id
     
     data = clb.data.split('_',3)
+ 
     product_id = int(data[1])
     license_id = int(data[2])
 
-    amount = await LicensesDatabase.get_value('')
+    amount = await LicensesDatabase.get_value('price',license_id)
     prices = [LabeledPrice(label="XTR", amount=amount)]
 
 
@@ -743,12 +750,7 @@ async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False,  **kwargs):
     # ТГ сам добавит кнопку оплаты, если тут ничего не передавать
     reply_markup=user_keyboards.get_paystars_kb(amount)
     )
-   
-@router.callback_query(F.data == "donate_cancel")
-async def on_donate_cancel(callback: CallbackQuery, **kwargs):
-    # await callback.answer(l10n.format_value("donate-cancel-payment"))
 
-    await callback.message.delete()
 
 # @router.message(Command("refund"))
 # async def cmd_refund(message: Message, bot: Bot, command: CommandObject, l10n: FluentLocalization):
@@ -822,7 +824,7 @@ async def pre_checkout_query(query: PreCheckoutQuery):
 
 
 @router.message(F.successful_payment)
-async def successful_payment(message: Message, bot: Bot) -> None:
+async def successful_payment(message: Message) -> None:
     await bot.refund_star_payment(
         user_id=message.from_user.id,
         telegram_payment_charge_id=message.successful_payment.telegram_payment_charge_id,
