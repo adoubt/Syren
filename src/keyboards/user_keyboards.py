@@ -6,7 +6,7 @@ def get_choose_licenses_kb(user_id,product_id,licenses,disabled) -> InlineKeyboa
     for license in licenses:
          if license[0] not in disabled:
             # buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"addToCart_{product_id}_{license[0]}_{user_id}")]
-            buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"addToCart_{product_id}_{license[0]}_{user_id}")]
+            buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} ⭐', callback_data=f"paystars_{product_id}_{license[0]}_{user_id}")]
     
     back = []
     back.append(InlineKeyboardButton(text='Back', callback_data=f"showcase_{product_id}")) 
@@ -14,6 +14,12 @@ def get_choose_licenses_kb(user_id,product_id,licenses,disabled) -> InlineKeyboa
     ikb = InlineKeyboardMarkup(inline_keyboard=rows)
     return ikb   
    
+def get_paystars_kb(amount):
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f'Pay {amount}⭐️', pay=True)],
+        [InlineKeyboardButton(text="donate-button-cancel",callback_data="paystars_cancel")]
+        ]) 
+    return ikb
 def get_product_licenses_kb(product_id:int,licenses,disabled)-> InlineKeyboardMarkup:
     
     buttons = []
@@ -101,7 +107,7 @@ def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlis
     # if already_in_cart ==1:
     #     cart_btn = [InlineKeyboardButton(text=f'Go To Cart', callback_data='cart')]
     # else:
-    cart_btn = [InlineKeyboardButton(text=f'From {price} USD', callback_data=f'choose_license_{product_id}')]
+    cart_btn = [InlineKeyboardButton(text=f'From {price} ⭐', callback_data=f'choose_license_{product_id}')]
     if already_in_wishlist ==1:
         wishlist_btn = [InlineKeyboardButton(text=f'Go To wishlist', callback_data='cart')]
     else:
@@ -143,7 +149,7 @@ def get_settings_kb()-> InlineKeyboardMarkup:
 
 # def get_item_in_cart_kb(user_id,product_id,license_name,price,description, license_file)-> InlineKeyboardMarkup:
 #     ikb = InlineKeyboardMarkup(inline_keyboard=[
-#         [InlineKeyboardButton(text=f"Pay {price} USD", callback_data=f'Pay_{user_id}_{product_id}')],
+#         [InlineKeyboardButton(text=f"Pay {price} ⭐", callback_data=f'Pay_{user_id}_{product_id}')],
 #         [InlineKeyboardButton(text="Remove❌", callback_data=f'delItemFromCart_{user_id}_{product_id}')],
 #     ]) 
 #     return ikb

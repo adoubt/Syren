@@ -3,7 +3,7 @@ from aiogram import types
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery
 from aiogram.fsm.context import FSMContext
 
 from loguru import logger
@@ -702,3 +702,130 @@ async def upload_ask_callback_handler(message: types.Message, state: FSMContext,
     await state.clear()
     await LicensesDatabase.set_value(license_id,"license_file",license_file)
     await message.answer(text=f'Updated!',reply_markup =user_keyboards.get_hide_file_kb())
+
+
+
+#Stars_payment
+
+@router.callback_query(lambda clb: clb.data.startswith('paystars'))
+async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False,  **kwargs):
+    
+    user_id = clb.message.chat.id
+    
+    data = clb.data.split('_',3)
+    product_id = int(data[1])
+    license_id = int(data[2])
+
+    amount = await LicensesDatabase.get_value('')
+    prices = [LabeledPrice(label="XTR", amount=amount)]
+
+
+    await clb.message.answer_invoice(
+    title='Invoice Title',
+    description=f'You want to pay {amount} XTR(stars)',
+    prices=prices,
+
+    # provider_token оставляем пустым
+    provider_token="",
+
+    # тут передаем любые данные (пэйлоад)
+    # например, идентификатор услуги которую покупает юзер
+    # или уровень подписки
+    # или еще что-то такое
+    # мы же передадим кол-во. задоначенных звёзд (просто так)
+    payload=f"paystars_{product_id}_{license_id}_{amount}",
+
+    # XTR - это код валюты Telegram Stars
+    currency="XTR",
+
+    # не забываем передать нашу кастомную клавиатуру
+    # напоминаю, что это можно не делать
+    # ТГ сам добавит кнопку оплаты, если тут ничего не передавать
+    reply_markup=user_keyboards.get_paystars_kb(amount)
+    )
+   
+@router.callback_query(F.data == "donate_cancel")
+async def on_donate_cancel(callback: CallbackQuery, **kwargs):
+    # await callback.answer(l10n.format_value("donate-cancel-payment"))
+
+    await callback.message.delete()
+
+# @router.message(Command("refund"))
+# async def cmd_refund(message: Message, bot: Bot, command: CommandObject, l10n: FluentLocalization):
+#     # ID транзакции для рефанда
+#     # по ней можно понять, какой товар/услугу возвращает человек
+#     # и по правилам ТГ, вы можете ОТКАЗАТЬ в рефанде
+#     # но только в том случае, если условия отказа прописаны в Terms of Service вашего бота
+#     # ...
+#     # для примера, мы будем разрешать любой возврат звезд в любое время
+#     t_id = command.args
+
+#     # чекаем, указан ли ID транзакции
+#     if t_id is None:
+#         await message.answer(l10n.format_value("donate-refund-input-error"))
+#         return
+
+#     # пытаемся сделать рефанд
+#     try:
+#         await bot.refund_star_payment(
+#             user_id=message.from_user.id,
+#             telegram_payment_charge_id=t_id
+#         )
+#         await message.answer(l10n.format_value("donate-refund-success"))
+
+#     except TelegramBadRequest as e:
+#         err_text = l10n.format_value("donate-refund-code-not-found")
+
+#         if "CHARGE_ALREADY_REFUNDED" in e.message:
+#             err_text = l10n.format_value("donate-refund-already-refunded")
+
+#         await message.answer(err_text)
+#         return
+@router.pre_checkout_query()
+async def pre_checkout_query(query: PreCheckoutQuery):
+    # смысл on_pre_checkout_query такой же, как и в любых других платежах
+    # бот должен ответить в течение 10 секунд
+    # ..
+    payload = query.invoice_payload
+    data = payload.split('_',3)
+    product_id = int(data[1])
+    license_id = int(data[2])
+    amount = int(data[3])
+    
+    
+    # тут можно/нужно проверить доступность товара/услуги, прямо перед оплатой
+    product = await ProductsDatabase.get_product(product_id)
+    is_sold = product[9]
+    
+    license = LicensesDatabase.get_license(license_id)
+    price = license[4]
+    is_active = license[11]
+    # добавить проверку наличия файлов
+    # дорбавить проверку работы шлюза у битмаря и платформы?
+    if is_sold == 1:
+        await query.answer(
+       ok=False,
+       error_message="Unfortunately the beat just has been SOLD"
+        )
+    elif price != amount:
+        await query.answer(
+       ok=False,
+       error_message="Sotty, the price was just changed"
+        )
+    elif is_active == 0:
+        await query.answer(
+       ok=False,
+       error_message="Sorry this license was disabled, contact seller for more"
+        )
+    else :
+        await query.answer(ok=True)
+
+
+@router.message(F.successful_payment)
+async def successful_payment(message: Message, bot: Bot) -> None:
+    await bot.refund_star_payment(
+        user_id=message.from_user.id,
+        telegram_payment_charge_id=message.successful_payment.telegram_payment_charge_id,
+    )
+    
+    await message.answer("Thanks. Your payment has been refunded.")
