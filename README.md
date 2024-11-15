@@ -1,7 +1,7 @@
 # Syren|Beats Marketplace 
 [**Current Link**](https://t.me/OctarynBot)
 
-[**Делаю платформу для битов**](https://t.me/syrenpath)
+[** тгк Делаю платформу для битов**](https://t.me/syrenpath)
 
 Hello World! 👋  
 I'm building the next **Top 1 Music Marketplace** in the world, powered by [TON](https://docs.ton.org/v3/guidelines/get-started-with-ton) and [Telegram Bot API](https://core.telegram.org/bots/api).  
