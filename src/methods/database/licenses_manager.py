@@ -176,9 +176,9 @@ class LicensesDatabase:
     async def set_default(cls, user_id:int):
         await cls.create_table()
         await cls.del_all_by_user(user_id=user_id)
-        await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=20,feature=1,license_type=1,license_file='file_id contract',is_active=1,)
-        await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=35,feature=0,license_type=2,license_file='file_id contract',is_active=1,)
-        await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=75,feature=0,license_type=3,license_file='file_id contract',is_active=1,)
-        await cls.create_license(user_id=user_id,name="Unlimited",description='MP3 + WAV + STEMS',price=150,feature=0,license_type=4,license_file='file_id contract',is_active=1,)
-        await cls.create_license(user_id=user_id,name="Exclusive",description='MP3 + WAV + STEMS',price=500,feature=0,license_type=5,license_file='file_id contract',is_active=1,)
+        await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=1000,feature=1,license_type=1,license_file='file_id contract',is_active=1,)
+        await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=1500,feature=0,license_type=2,license_file='file_id contract',is_active=1,)
+        await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=3000,feature=0,license_type=3,license_file='file_id contract',is_active=1,)
+        await cls.create_license(user_id=user_id,name="Unlimited",description='MP3 + WAV + STEMS',price=4500,feature=0,license_type=4,license_file='file_id contract',is_active=1,)
+        await cls.create_license(user_id=user_id,name="Exclusive",description='MP3 + WAV + STEMS',price=7000,feature=0,license_type=5,license_file='file_id contract',is_active=1,)
 

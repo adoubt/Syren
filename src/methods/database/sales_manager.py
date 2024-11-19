@@ -16,7 +16,7 @@ class SalesDatabase:
                                     sale_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                                     customer_id INTEGER,
                                     seller_id INTEGER,
-                                    products_id INTEGER,
+                                    product_id INTEGER,
                                     total_amount REAL,
                                     currency STRING,
                                     discount REAL,
@@ -34,7 +34,7 @@ class SalesDatabase:
     async def create_sale(cls,
                             customer_id :int,
                             seller_id :int,
-                            products_id :int,
+                            product_id :int,
                             total_amount :float,
                             currency :str,
                             discount: float,
@@ -47,8 +47,8 @@ class SalesDatabase:
     
         current_datetime = int(datetime.timestamp(datetime.now()))
         async with aiosqlite.connect("src/databases/sales.db") as db:
-            await db.execute(f'INSERT INTO sales("customer_id", "seller_id", "products_id", "total_amount", "currency","discount","service_fee","license_file","promo_code_id","offer_id","datetime","invoice","payment_method") VALUES  (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                             (customer_id, seller_id, products_id, total_amount, currency,discount,service_fee,license_file,promo_code_id,offer_id,current_datetime,invoice,payment_method))
+            await db.execute(f'INSERT INTO sales("customer_id", "seller_id", "product_id", "total_amount", "currency","discount","service_fee","license_file","promo_code_id","offer_id","datetime","invoice","payment_method") VALUES  (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                             (customer_id, seller_id, product_id, total_amount, currency,discount,service_fee,license_file,promo_code_id,offer_id,current_datetime,invoice,payment_method))
             await db.commit()
 
     @classmethod

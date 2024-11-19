@@ -3,7 +3,7 @@ from aiogram import types
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery
+from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, InputMediaDocument, InputMediaAudio
 from aiogram.fsm.context import FSMContext
 
 from loguru import logger
@@ -16,13 +16,14 @@ from src.methods.database.products_manager import ProductsDatabase
 from src.methods.database.licenses_manager import LicensesDatabase
 from src.methods.database.licenses_products_manager import LicensesProductsDatabase
 from src.methods.database.wishlists_manager import WishlistsDatabase
+from src.methods.database.sales_manager import SalesDatabase
 # from src.methods.payment import aaio_manager
 # from src.methods.payment.payment_processing import ProcessOrder
 
 
 router =  Router()
 
-from src.misc import bot,bot_id, SUPER_ADMIN,PASSWORD
+from src.misc import bot,bot_id, SUPER_ADMIN,PASSWORD, SERVICE_FEE
 from src.handlers.decorators import new_seller_handler, new_user_handler
 
 import pytonconnect.exceptions
@@ -812,7 +813,7 @@ async def pre_checkout_query(query: PreCheckoutQuery):
     elif price != amount:
         await query.answer(
        ok=False,
-       error_message="Sotty, the price was just changed"
+       error_message="Sorry, the price just was changed"
         )
     elif is_active == 0:
         await query.answer(
@@ -825,9 +826,76 @@ async def pre_checkout_query(query: PreCheckoutQuery):
 
 @router.message(F.successful_payment)
 async def successful_payment(message: Message) -> None:
-    await bot.refund_star_payment(
-        user_id=message.from_user.id,
-        telegram_payment_charge_id=message.successful_payment.telegram_payment_charge_id,
-    )
+    # await bot.refund_star_payment(
+    #     user_id=message.from_user.id,
+    #     telegram_payment_charge_id=message.successful_payment.telegram_payment_charge_id,
+    # )
+
+    customer_id = message.from_user.id
+    payload = message.invoice_payload
+    data = payload.split('_',3)
+    invoice = message.telegram_payment_charge_id
+    product_id = int(data[1])
+    license_id = int(data[2])
+    amount = message.total_amount #int(data[3])
+
+    license = LicensesDatabase.get_license(license_id)
+    license_type,license_file = license[6],license[8]
+
+    product = ProductsDatabase.get_product(product_id)
+    seller_id, mp3_link,wav_link, stems_link,collab= product[1],product[5],product[6],product[7],product[11]
+
+    promo_code_id = None
+    offer_id = None
+    payment_method = 'STARS'
+    discount = 0.00 # должно быть в payload
+    total_amount = (amount * (100-SERVICE_FEE)) - discount
     
-    await message.answer("Thanks. Your payment has been refunded.")
+    currency = 'XTR'
+
+
+    logger.success(f"Sale! Seller: {seller_id} Customer: {customer_id} product_id= {product_id} XTR: {amount}")
+    #Формирую sale
+    try:
+
+        await SalesDatabase.create_sale(customer_id,
+                                        seller_id,
+                                        product_id,
+                                        total_amount,
+                                        currency,
+                                        discount,
+                                        SERVICE_FEE,
+                                        license_file,
+                                        promo_code_id,
+                                        invoice,
+                                        payment_method,
+                                        offer_id)
+    except Exception as e:
+        await bot.send_message(chat_id =SUPER_ADMIN, text = f'Error while creating Sale after success payment. \nSeller: {seller_id} Customer: {customer_id} product_id= {product_id} XTR: {amount}\n{e}')
+        logger.error(f'Error while creating Sale after success payment. \n Seller: {seller_id} Customer: {customer_id} product_id= {product_id} XTR: {amount}')
+        await message.answer(text=f'Some problems, I got this msg and will fix ASAP!!!!! you can contact me btw @brokeway')
+        await bot.send_message(chat_id = seller_id,text = f'Yo, we\'ve problems with the delivery of your files, fix it or send it manually (buyer contacts in the menu/sales)')
+    #Отправляю товары
+    try:
+        # Базовый массив media с первым элементом, который будет всегда
+        media = [InputMediaAudio(media=mp3_link, caption="Caption_mp3")]
+
+        # Добавляем дополнительные элементы в зависимости от license_type
+        if license_type in [2, 5, 4, 3]:
+            media.append(InputMediaDocument(media=wav_link, caption="Caption_wav"))
+        if license_type in [5, 4, 3]:
+            media.append(InputMediaDocument(media=stems_link, caption="Caption_stems"))
+        media.append(InputMediaDocument(media=license_file, caption="License_file"))
+        # Отправляем медиа-группу
+        await bot.send_media_group(chat_id=message.chat.id, media=media)
+    except Exception as e:
+        await bot.send_message(chat_id =SUPER_ADMIN, text = f'Files after success payment wasn\'t delivered. \nSeller: {seller_id} Customer: {customer_id} product_id= {product_id} XTR: {amount}\n{e}')
+        logger.error(f'Files after success payment wasn\'t delivered. \n Seller: {seller_id} Customer: {customer_id} product_id= {product_id} XTR: {amount}')
+    #Ставлю SOLD после продажи
+    if license_type == 5:
+        await ProductsDatabase.set_value(product_id,'is_sold',1)
+    
+    
+    #Уведомляю продавца
+    await bot.send_message(chat_id = seller_id, text =f'Congratulations! You’ve made a sale!')# тут будет клава к продаже поближе
+    #приват канал для регистрации всех транзакций тут же
