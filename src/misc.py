@@ -2,6 +2,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 import os
+# CRYPTO_PAY
+from cryptopay import CryptoPay
 
 load_dotenv()
 
@@ -21,3 +23,11 @@ AAIO_TOKEN = os.getenv('AAIO_TOKEN')
 MERCHANT_ID = os.getenv('MERCHANT_ID') # ID магазина
 SECRET = os.getenv('SECRET') # Секретный ключ №1 из настроек магазина
 SECRET2 = os.getenv('SECRET2') # Секретный ключ №2 из настроек магазина
+
+
+
+
+
+# Инициализация CryptoPay
+CRYPTO_PAY_TOKEN = os.getenv('CRYPTO_PAY_TOKEN')
+cp = CryptoPay(CRYPTO_PAY_TOKEN)  # Замени на свой токен
