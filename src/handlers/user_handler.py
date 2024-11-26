@@ -13,6 +13,7 @@ from src.keyboards import user_keyboards
 from src.methods.database.users_manager import UsersDatabase
 from src.methods.database.orders_manager import OrdersService
 from src.methods.database.carts_manager import ShoppingCartService
+shopping_cart_service = ShoppingCartService()
 from src.methods.database.products_manager import ProductsDatabase
 from src.methods.database.licenses_manager import LicensesDatabase
 from src.methods.database.licenses_products_manager import LicensesProductsDatabase
@@ -50,8 +51,9 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
         text = 'Welcome, here '
         user_id = message.from_user.id
         wishlist_count = await WishlistsDatabase.get_wishlist_count(user_id)
+        cart_count = await shopping_cart_service.count_items_in_cart(user_id)
         # await message.delete()
-        await message.answer(text=text, reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count))
+        await message.answer(text=text, reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count,cart_count))
    
     
     connector = get_connector(user_id)
@@ -133,7 +135,7 @@ async def seller_handler(message: Message, is_clb=False, **kwargs):
 async def buyer_handler(message: Message, is_clb=False, **kwargs):
     await start_handler(message)
 
-@router.message(F.text == "🤍 Wishlist")
+@router.message(F.text.startswith("🤍 Wishlist"))
 @new_user_handler
 async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
     user_id = message.from_user.id
@@ -151,23 +153,56 @@ async def mybeats_handler(message: Message, is_clb=False,current_page:int|None =
         mp3_link = product[5]
         await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
 
-@router.message(F.text == "🛒 Cart")
+@router.message(F.text.startswith("🛒 Cart"))
 @new_user_handler
 async def generate_cart_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
     user_id = message.from_user.id
-    if await WishlistsDatabase.get_wishlist_count(user_id)==0:
-        await WishlistsDatabase.create_table()
-        await message.answer(text = "Your Cart is Empty")
+
+    # Получаем товары из корзины
+    cart_items = await shopping_cart_service.get_cart_items(user_id)
+
+    # Если корзина пуста
+    if not cart_items:
+        await message.answer(text="Your Cart is Empty")
         return
+    
+    # Асинхронно получаем продукты и лицензии
+    product_tasks = [
+        ProductsDatabase.get_product(product_id=item['product_id'])
+        for item in cart_items
+    ]
+    license_tasks = [
+        LicensesDatabase.get_license(license_id=item['license_id'])
+        for item in cart_items
+    ]
+    
+    # Ждем завершения всех запросов
+    products, licenses = await asyncio.gather(*product_tasks, *license_tasks)
 
-    wishlist = await WishlistsDatabase.get_wishlist_by_user(user_id)
+    total_amount = 0
+    enriched_cart = []
 
-    for item in wishlist:
-        product_id = item[1]
-        product = await ProductsDatabase.get_product(product_id)
-        #Лишний раз лезу в бд
-        mp3_link = product[5]
-        await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
+    # Собираем данные для корзины
+    for item, product, license in zip(cart_items, products, licenses):
+        total_amount += license[4]  # Цена товара
+        enriched_cart.append({
+            "cart_item_id": item["item_cart_id"],
+            "cart_id": item["cart_id"],
+            "product_id": item["product_id"],
+            "quantity": item["quantity"],
+            "license_id": item["license_id"],
+            "added_at": item["added_at"],
+            "name": product[2],  # Имя товара
+            "price": license[4],  # Цена товара
+        })
+
+    # Генерация клавиатуры с товарами
+    keyboard = user_keyboards.get_generated_cart_kb(enriched_cart, user_id, total_amount)
+    
+    # Отправляем сообщение с корзиной и клавиатурой
+    await message.edit_text("Your cart:", reply_markup=keyboard)
+
+       
 
         
 @router.message(F.text == "📼 My Beats")
@@ -736,7 +771,7 @@ async def addToCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
     product_id = int(data[1])
     license_id = int(data[2])
     added_at = clb.message.date
-    await ShoppingCartService.add_item(user_id,product_id,license_id,added_at)
+    await shopping_cart_service.add_item(user_id,product_id,license_id,added_at)
     await choose_license_clb_handler(clb,is_clb=False,data = f'choose_license_{product_id}_{license_id}')
 
 @router.callback_query(lambda clb: clb.data.startswith('delFromCart'))
@@ -744,7 +779,7 @@ async def delFromCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
     user_id = clb.message.chat.id
     data = clb.data.split('_',3)
     product_id = int(data[1])
-    await ShoppingCartService.remove_item(user_id,product_id)
+    await shopping_cart_service.remove_item(user_id,product_id)
     await choose_license_clb_handler(clb,is_clb=False,data = f'choose_license_{product_id}_0')
 
 

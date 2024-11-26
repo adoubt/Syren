@@ -1,4 +1,4 @@
-import aiosqlite
+import aiosqlite, asyncio
 from typing import List, Tuple, Optional
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -55,14 +55,33 @@ class Database:
         async with self.get_db_connection() as db:
             cursor = await db.execute(query, params)
             return await cursor.fetchall()
-
+    async def create_tables(self): 
+        """Создать таблицы, если они не существуют.""" 
+        async with self.get_db_connection() as db: 
+            await db.execute(''' CREATE TABLE IF NOT EXISTS carts ( 
+                             cart_id INTEGER PRIMARY KEY, 
+                             user_id INTEGER NOT NULL, 
+                             status TEXT NOT NULL DEFAULT "active", 
+                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ''') 
+            
+            await db.execute(''' CREATE TABLE IF NOT EXISTS carts_items (
+                              cart_item_id INTEGER PRIMARY KEY, 
+                             cart_id INTEGER NOT NULL, 
+                             product_id INTEGER NOT NULL, 
+                             quantity INTEGER NOT NULL DEFAULT 1, 
+                             license_id INTEGER NOT NULL, 
+                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+                             FOREIGN KEY (cart_id) REFERENCES carts(cart_id) ) ''') 
+            await db.commit()
 
 class CartManager:
     """Менеджер для работы с корзинами."""
 
     def __init__(self, db: Database):
         self.db = db
-
+    
     async def get_cart_by_user_id(self, user_id: int, status: str = 'active') -> Optional[Cart]:
         """Получить корзину по user_id и статусу."""
         result = await self.db.fetch_one(
@@ -86,8 +105,8 @@ class CartManager:
         await self.db.execute(
             'UPDATE carts SET status = ?, updated_at = ? WHERE cart_id = ?', 
             (status, updated_at, cart.cart_id)
-        )
-
+        ) 
+    
 
 class CartItemManager:
     """Менеджер для работы с товарами в корзине."""
@@ -124,14 +143,25 @@ class CartItemManager:
             (cart.cart_id,)
         )
 
+    async def count_items_in_cart(self, cart: Cart) -> int: 
+        """Посчитать количество товаров в корзине.""" 
+        result = await self.db.fetch_one(
+             'SELECT COUNT(*) FROM carts_items WHERE cart_id = ?', 
+             (cart.cart_id,) ) 
+        return result[0] if result else 0
+
 
 class ShoppingCartService:
     """Сервис для работы с корзинами и товарами."""
 
-    def __init__(self, db: Database):
-        self.cart_manager = CartManager(db)
-        self.cart_item_manager = CartItemManager(db)
-
+    def __init__(self):
+        self.db = Database()
+        self.cart_manager = CartManager(self.db)
+        self.cart_item_manager = CartItemManager(self.db)
+        self._initialize_db() 
+    def _initialize_db(self): 
+        loop = asyncio.get_event_loop() 
+        loop.run_until_complete(self.db.create_tables())
     async def get_or_create_cart(self, user_id: int, created_at: int) -> Cart:
         """Получить корзину или создать новую."""
         cart = await self.cart_manager.get_cart_by_user_id(user_id)
@@ -161,3 +191,9 @@ class ShoppingCartService:
         """Обновить статус корзины для пользователя."""
         cart = await self.get_or_create_cart(user_id, 0)  # Неважно время, просто нужен cart_id
         await self.cart_manager.update_cart_status(cart, status, updated_at)
+
+    async def count_items_in_cart(self, user_id: int) -> int: 
+        """Посчитать количество товаров в корзине пользователя.""" 
+        cart = await self.get_or_create_cart(user_id, 0)
+        return await self.cart_item_manager.count_items_in_cart(cart)
+

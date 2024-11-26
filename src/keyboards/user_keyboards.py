@@ -16,7 +16,25 @@ def get_choose_licenses_kb(user_id,product_id,licenses,disabled,in_cart:int|None
     rows= [[btn] for btn in buttons] + [back]
     ikb = InlineKeyboardMarkup(inline_keyboard=rows)
     return ikb   
-   
+
+def get_generated_cart_kb(cart_items, user_id, total_amount):
+    ikb = InlineKeyboardMarkup()
+    if len(cart_items) == 1:
+        #тут должна быть логика на случай 1 бита в корзине
+        # а дальше пагинацию делать
+        pass 
+    for item in cart_items:
+        ikb.add(
+            InlineKeyboardButton(text=item["name"], callback_data=f"showcase{item['product_id']}"),
+            InlineKeyboardButton(text="🗑️", callback_data=f"removeitemfromcart_{user_id}_{item['product_id']}")
+        )
+
+    ikb.add(
+        InlineKeyboardButton(text="🗑️ Remove All", callback_data=f"clear_cart_{user_id}"),
+        InlineKeyboardButton(text=f"💳 Checkout $ {total_amount}", callback_data="checkout")
+    )
+    return ikb
+
 def get_paystars_kb(amount)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f'Pay {amount}⭐️', pay=True)],
@@ -106,11 +124,11 @@ def get_mylicense_kb(license) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlist:int,price:int| None = None) -> InlineKeyboardMarkup:
-    # if already_in_cart ==1:
-    #     cart_btn = [InlineKeyboardButton(text=f'Go To Cart', callback_data='cart')]
-    # else:
-    cart_btn = [InlineKeyboardButton(text=f'From {price} ⭐', callback_data=f'choose_license_{product_id}')]
+def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlist:int,already_in_cart:int,price:int| None = None) -> InlineKeyboardMarkup:
+    if already_in_cart ==1:
+        cart_btn = [InlineKeyboardButton(text=f'Go To Cart', callback_data='cart')]
+    else:
+        cart_btn = [InlineKeyboardButton(text=f'From {price} USD', callback_data=f'choose_license_{product_id}')]
     if already_in_wishlist ==1:
         wishlist_btn = [InlineKeyboardButton(text=f'Go To wishlist', callback_data='cart')]
     else:
@@ -274,14 +292,16 @@ def get_cancel_kb()-> InlineKeyboardMarkup:
     ]) 
     return ikb
 
-def get_main_buyer_kb(cart) -> ReplyKeyboardMarkup:
-    cart_view = 'Cart'
-    if cart > 0:cart_view = f'Cart({cart})'
+def get_main_buyer_kb(wishlist_count :int,cart_caunt:int) -> ReplyKeyboardMarkup:
+    cart_view = '🛒 Cart'
+    if cart_caunt > 0:cart_view = f'🛒 Cart({cart_caunt})'
+    wishlist_view = '🤍 Wishlist'
+    if wishlist_count>0:wishlist_view = f'🤍 Wishlist({wishlist_count})'
     rkb = ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text='🏠 Home',callback_data='homepage'),
-         
-        KeyboardButton(text='⚙️ Settings', callback_data='settings')],
-        [KeyboardButton(text='🤍 Wishlist')],
+        KeyboardButton(text=cart_view, callback_data='cart')] 
+        [KeyboardButton(text='⚙️ Settings', callback_data='settings'),
+        KeyboardButton(text=wishlist_view)],
         
         [KeyboardButton(text='🌏 Sell Beats', callback_data='seller')]],resize_keyboard=True
     )
@@ -296,13 +316,5 @@ def get_main_seller_kb() -> ReplyKeyboardMarkup:
         KeyboardButton(text='📂 My Licenses')],
         [KeyboardButton(text='⚙️ Settings', callback_data='settings_1'),
          KeyboardButton(text='🌏 Buy Beats', callback_data='buyer')]],resize_keyboard=True
-    )
-    return rkb
-
-def get_cart_buyer_kb(total) -> ReplyKeyboardMarkup:
-    
-    rkb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text=f' Pay ${total}')],
-        [KeyboardButton(text='Back')]],resize_keyboard=True
     )
     return rkb
