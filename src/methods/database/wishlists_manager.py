@@ -54,12 +54,11 @@ class WishlistsDatabase:
     @classmethod
     async def add_to_wishlist(cls, 
                             user_id: int,
-                            product_id: int,
-                            license_id: int
+                            product_id: int
                             ):
         async with aiosqlite.connect("src/databases/wishlists.db") as db:
-            await db.execute(f'REPLACE INTO wishlists ("user_id", "product_id","license_id") VALUES (?,?,?)',
-                             (user_id,product_id,license_id))
+            await db.execute(f'REPLACE INTO wishlists ("user_id", "product_id") VALUES (?,?)',
+                             (user_id,product_id))
             await db.commit()
     
     @classmethod    

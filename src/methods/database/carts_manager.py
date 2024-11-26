@@ -71,8 +71,7 @@ class Database:
                              product_id INTEGER NOT NULL, 
                              quantity INTEGER NOT NULL DEFAULT 1, 
                              license_id INTEGER NOT NULL, 
-                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+                             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                              FOREIGN KEY (cart_id) REFERENCES carts(cart_id) ) ''') 
             await db.commit()
 
@@ -130,7 +129,7 @@ class CartItemManager:
 
     async def get_items_from_cart(self, cart: Cart) -> List[CartItem]:
         """Получить все товары из корзины."""
-        rows = await self.db.fetch_all(
+        rows = await self.db.fetch_all( 
             'SELECT cart_item_id, cart_id, product_id, quantity, license_id, added_at FROM carts_items WHERE cart_id = ?', 
             (cart.cart_id,)
         )
@@ -150,7 +149,13 @@ class CartItemManager:
              (cart.cart_id,) ) 
         return result[0] if result else 0
 
-
+    async  def check_item_in_cart(self, cart:Cart, product_id: int)-> CartItem:
+        """Найти совпадение по product_id"""
+        cart_item = await self.db.fetch_all(
+            'SELECT * FROM carts_items WHERE product_id = ? AND cart_id = ?',
+            (product_id,cart.cart_id,)
+        )
+        return cart_item if cart_item else None
 class ShoppingCartService:
     """Сервис для работы с корзинами и товарами."""
 
@@ -196,4 +201,9 @@ class ShoppingCartService:
         """Посчитать количество товаров в корзине пользователя.""" 
         cart = await self.get_or_create_cart(user_id, 0)
         return await self.cart_item_manager.count_items_in_cart(cart)
+    
+    async def check_item_in_cart(self,user_id:int,product_id: int) -> CartItem:
+        """Найти совпадение по product_id у пользователя"""
+        cart = await self.get_or_create_cart(user_id, 0)
+        return await self.cart_item_manager.check_item_in_cart(cart,product_id)
 

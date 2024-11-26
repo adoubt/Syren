@@ -88,10 +88,11 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
             already_in_wishlist = 0
             if await WishlistsDatabase.get_value('product_id',user_id) == product_id:
                 already_in_wishlist = 1
+            already_in_cart = 1 if await shopping_cart_service.check_item_in_cart(user_id,product_id) else 0
             if is_clb:
-                await message.edit_caption( reply_markup=user_keyboards.get_showcase_kb(product_id=product_id, price=featured_price,is_sold=is_sold,channel=channel,already_in_wishlist=already_in_wishlist), caption = '')
+                await message.edit_caption( reply_markup=user_keyboards.get_showcase_kb(product_id=product_id, price=featured_price,is_sold=is_sold,channel=channel,already_in_wishlist=already_in_wishlist,already_in_cart=already_in_cart), caption = '')
             else: 
-                await message.answer_audio(audio=mp3_link,  reply_markup=user_keyboards.get_showcase_kb(product_id=product_id, price=featured_price,is_sold=is_sold,channel=channel,already_in_wishlist=already_in_wishlist), caption = '')
+                await message.answer_audio(audio=mp3_link,  reply_markup=user_keyboards.get_showcase_kb(product_id=product_id, price=featured_price,is_sold=is_sold,channel=channel,already_in_wishlist=already_in_wishlist,already_in_cart=already_in_cart), caption = '')
     # if start_photo =="":
     #     await message.answer(text = text, parse_mode="HTML")
     # else:
@@ -137,10 +138,11 @@ async def buyer_handler(message: Message, is_clb=False, **kwargs):
 
 @router.message(F.text.startswith("🤍 Wishlist"))
 @new_user_handler
-async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
+async def wishlist_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
     user_id = message.from_user.id
+    await WishlistsDatabase.create_table()
     if await WishlistsDatabase.get_wishlist_count(user_id)==0:
-        await WishlistsDatabase.create_table()
+        
         await message.answer(text = "Your Wishlist is Empty")
         return
 
@@ -152,6 +154,12 @@ async def mybeats_handler(message: Message, is_clb=False,current_page:int|None =
         #Лишний раз лезу в бд
         mp3_link = product[5]
         await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
+
+@router.callback_query(lambda clb: clb.data == 'wishlist')
+@new_user_handler
+async def wishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await wishlist_handler(clb.message, is_clb=True)
+
 
 @router.message(F.text.startswith("🛒 Cart"))
 @new_user_handler
@@ -165,42 +173,33 @@ async def generate_cart_handler(message: Message, is_clb=False,current_page:int|
     if not cart_items:
         await message.answer(text="Your Cart is Empty")
         return
-    
     # Асинхронно получаем продукты и лицензии
-    product_tasks = [
-        ProductsDatabase.get_product(product_id=item['product_id'])
-        for item in cart_items
-    ]
-    license_tasks = [
-        LicensesDatabase.get_license(license_id=item['license_id'])
-        for item in cart_items
-    ]
-    
-    # Ждем завершения всех запросов
-    products, licenses = await asyncio.gather(*product_tasks, *license_tasks)
-
-    total_amount = 0
-    enriched_cart = []
-
-    # Собираем данные для корзины
-    for item, product, license in zip(cart_items, products, licenses):
-        total_amount += license[4]  # Цена товара
-        enriched_cart.append({
-            "cart_item_id": item["item_cart_id"],
-            "cart_id": item["cart_id"],
-            "product_id": item["product_id"],
-            "quantity": item["quantity"],
-            "license_id": item["license_id"],
-            "added_at": item["added_at"],
-            "name": product[2],  # Имя товара
-            "price": license[4],  # Цена товара
-        })
+    product_tasks = [ ProductsDatabase.get_product(product_id=item.product_id) for item in cart_items ] 
+    license_tasks = [ LicensesDatabase.get_license(license_id=item.license_id) for item in cart_items ]
+    # Ждем завершения всех запросов 
+    products_results = await asyncio.gather(*product_tasks) 
+    licenses_results = await asyncio.gather(*license_tasks) 
+    total_amount = 0 
+    enriched_cart = [] 
+    # Собираем данные для корзины 
+    for item, product, license in zip(cart_items, products_results, licenses_results): 
+        total_amount += license[4] # Цена товара 
+        enriched_cart.append({ 
+            "cart_item_id": item.cart_item_id, 
+            "cart_id": item.cart_id, 
+            "product_id": item.product_id, 
+            "quantity": item.quantity, 
+            "license_id": item.license_id,
+            "added_at": item.added_at, 
+            "name": product[2], # Имя товара 
+            "price": license[4], # Цена товара
+                })
 
     # Генерация клавиатуры с товарами
     keyboard = user_keyboards.get_generated_cart_kb(enriched_cart, user_id, total_amount)
     
     # Отправляем сообщение с корзиной и клавиатурой
-    await message.edit_text("Your cart:", reply_markup=keyboard)
+    await message.answer("Your cart:", reply_markup=keyboard)
 
        
 
@@ -311,7 +310,7 @@ async def choose_license_clb_handler(clb: CallbackQuery, is_clb=True, data:str|N
         data = clb.data.split('_',3)
         in_cart = int(data[3])#тут лежит лицуха из корзины логика такая если id совпадет то будет другая кнопка
     user_id = clb.from_user.id
-    product_id = data[2]
+    product_id = int(data[2])
     product = await ProductsDatabase.get_product(product_id)
     license_type=5
     seller = product[1]
@@ -331,17 +330,17 @@ async def choose_license_clb_handler(clb: CallbackQuery, is_clb=True, data:str|N
 
 
 @router.callback_query(lambda clb: clb.data.startswith("addTowishlist"))
-async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-    
-    data = clb.data.split('_',3)
-    user_id,product_id, = data[1],data[1]
+async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=True, **kwargs):
+    user_id = clb.from_user.id
+    data = clb.data.split('_',1)
+    product_id, = data[1]
     product = await ProductsDatabase.get_product(product_id)
     await WishlistsDatabase.create_table()
     await WishlistsDatabase.add_to_wishlist(user_id,product_id)
-    
+    already_in_cart = 1 if await shopping_cart_service.check_item_in_cart(user_id,product_id) else 0
     seller, is_sold= product[1],product[9]
     channel = await UsersDatabase.get_value(seller,'channel')
-    await clb.message.edit_caption(caption = 'Added To wishlist ✔', reply_markup = user_keyboards.get_showcase_kb(product_id=product_id,is_sold=is_sold,channel=channel,already_in_wishlist=1))
+    await clb.message.edit_caption(caption = 'Added To wishlist ✔', reply_markup = user_keyboards.get_showcase_kb(product_id=product_id,is_sold=is_sold,channel=channel,already_in_wishlist=1,already_in_cart=already_in_cart))
 
 
 # @router.callback_query(lambda clb: clb.data.startswith("addTowishlist"))
@@ -387,10 +386,6 @@ async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 
 
 
-# @router.callback_query(lambda clb: clb.data == 'wishlist')
-# @new_user_handler
-# async def wishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-#     await wishlist_handler(clb.message, is_clb=True)
 
 
 @router.callback_query(lambda clb: clb.data.startswith("delItemFromwishlist"))
@@ -777,10 +772,14 @@ async def addToCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
 @router.callback_query(lambda clb: clb.data.startswith('delFromCart'))
 async def delFromCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
     user_id = clb.message.chat.id
-    data = clb.data.split('_',3)
+    data = clb.data.split('_',4)
     product_id = int(data[1])
     await shopping_cart_service.remove_item(user_id,product_id)
-    await choose_license_clb_handler(clb,is_clb=False,data = f'choose_license_{product_id}_0')
+    if data[4] =='license':
+        await choose_license_clb_handler(clb,is_clb=False,data = f'choose_license_{product_id}_0')
+    else:
+        await generate_cart_handler(clb,is_clb=True)
+
 
 
 #Stars_payment
