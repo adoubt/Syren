@@ -5,3 +5,4 @@ src/databases/*.db
 src/logs/*.log
 *.bak
 *.tmp
+venv
