@@ -3,7 +3,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 import os
 # CRYPTO_PAY
-from cryptopay import CryptoPay
+from cryptopay import MAINNET, TESTNET, CryptoPay
 
 load_dotenv()
 
@@ -29,5 +29,7 @@ SECRET2 = os.getenv('SECRET2') # Секретный ключ №2 из наст�
 
 
 # Инициализация CryptoPay
-CRYPTO_PAY_TOKEN = os.getenv('CRYPTO_PAY_TOKEN')
-cp = CryptoPay(CRYPTO_PAY_TOKEN)  # Замени на свой токен
+CRYPTO_PAY_TOKEN_TESTNET = os.getenv('CRYPTO_PAY_TOKEN_TESTNET')
+CRYPTO_PAY_TONEN = os.getenv('CRYPTO_PAY_TOKEN')
+#cp = CryptoPay(CRYPTO_PAY_TOKEN,MAINTEST)  # Замени на свой токен
+cp = CryptoPay('9446:AAZ2L8x6y4c7LDRvI8bODtqjzCV9CubVjm0',TESTNET)

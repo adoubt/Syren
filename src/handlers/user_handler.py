@@ -151,7 +151,25 @@ async def mybeats_handler(message: Message, is_clb=False,current_page:int|None =
         mp3_link = product[5]
         await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
 
+@router.message(F.text == "🛒 Cart")
+@new_user_handler
+async def generate_cart_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
+    user_id = message.from_user.id
+    if await WishlistsDatabase.get_wishlist_count(user_id)==0:
+        await WishlistsDatabase.create_table()
+        await message.answer(text = "Your Cart is Empty")
+        return
 
+    wishlist = await WishlistsDatabase.get_wishlist_by_user(user_id)
+
+    for item in wishlist:
+        product_id = item[1]
+        product = await ProductsDatabase.get_product(product_id)
+        #Лишний раз лезу в бд
+        mp3_link = product[5]
+        await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
+
+        
 @router.message(F.text == "📼 My Beats")
 @new_user_handler
 async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
