@@ -11,22 +11,22 @@ class ProductsDatabase:
             async with db.execute('''CREATE TABLE IF NOT EXISTS products(
                                     product_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                                     user_id INTEGER,
-                                    name STRING,
+                                    name TEXT,
                                     bpm INTEGER,
-                                    preview_link STRING,
-                                    mp3_link STRING,
-                                    wav_link STRING,
-                                    stems_link STRING,
-                                    image_link STRING,
+                                    preview_link TEXT,
+                                    mp3_link TEXT,
+                                    wav_link TEXT,
+                                    stems_link TEXT,
+                                    image_link TEXT,
                                     is_sold INTEGER,
                                     views INTEGER,
-                                    collab STRING,
-                                    tags STRING,
-                                    genre STRING,
-                                    mood STRING,
-                                    date STRING,
-                                    title STRING,
-                                    performer STRING
+                                    collab TEXT,
+                                    tags TEXT,
+                                    genre TEXT,
+                                    mood TEXT,
+                                    date TEXT,
+                                    title TEXT,
+                                    performer TEXT
                                     )'''
                                   ) as cursor:
                 pass

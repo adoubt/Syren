@@ -1,12 +1,15 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def get_choose_licenses_kb(user_id,product_id,licenses,disabled) -> InlineKeyboardMarkup:
+def get_choose_licenses_kb(user_id,product_id,licenses,disabled,in_cart:int|None) -> InlineKeyboardMarkup:
     buttons = []
     for license in licenses:
          if license[0] not in disabled:
-            # buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"addToCart_{product_id}_{license[0]}_{user_id}")]
-            buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} ⭐', callback_data=f"paystars_{product_id}_{license[0]}_{user_id}")]
+            # buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"paystars_{product_id}_{license[0]}_{user_id}")]
+            if license[0] == in_cart:
+                buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"delFromCart_{product_id}_{license[0]}_{user_id}")]
+            else:
+                buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"addToCart_{product_id}_{license[0]}_{user_id}")]
     
     back = []
     back.append(InlineKeyboardButton(text='Back', callback_data=f"showcase_{product_id}")) 

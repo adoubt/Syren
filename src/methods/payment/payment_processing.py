@@ -1,6 +1,6 @@
 from src.methods.database.users_manager import UsersDatabase
 from src.methods.database.products_manager import ProductsDatabase
-from src.methods.database.payments_manager import OrdersDatabase
+from methods.database.orders_manager import OrdersDatabase
 from loguru import logger
 from src.misc import bot
 

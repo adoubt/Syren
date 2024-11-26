@@ -1,4 +1,4 @@
-from src.methods.database.payments_manager import OrdersDatabase
+from methods.database.orders_manager import OrdersDatabase
 from src.methods.payment import aaio_manager
 from src.methods.payment.payment_processing import ProcessOrder
 import asyncio

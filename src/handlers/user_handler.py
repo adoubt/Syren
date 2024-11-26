@@ -11,12 +11,13 @@ from loguru import logger
 from src.keyboards import user_keyboards
 
 from src.methods.database.users_manager import UsersDatabase
-# from src.methods.database.payments_manager import OrdersDatabase
+from src.methods.database.orders_manager import OrdersService
+from src.methods.database.carts_manager import ShoppingCartService
 from src.methods.database.products_manager import ProductsDatabase
 from src.methods.database.licenses_manager import LicensesDatabase
 from src.methods.database.licenses_products_manager import LicensesProductsDatabase
 from src.methods.database.wishlists_manager import WishlistsDatabase
-from src.methods.database.sales_manager import SalesDatabase
+# from src.methods.database.sales_manager import SalesDatabase
 # from src.methods.payment import aaio_manager
 # from src.methods.payment.payment_processing import ProcessOrder
 
@@ -249,9 +250,13 @@ async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     await clb.answer()
 
 @router.callback_query(lambda clb: clb.data.startswith("choose_license_"))
-async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-
-    data = clb.data.split('_',2)
+async def choose_license_clb_handler(clb: CallbackQuery, is_clb=True, data:str|None = None, **kwargs):
+    if is_clb:
+        data = clb.data.split('_',2)
+        in_cart = None 
+    else:
+        data = clb.data.split('_',3)
+        in_cart = int(data[3])#тут лежит лицуха из корзины логика такая если id совпадет то будет другая кнопка
     user_id = clb.from_user.id
     product_id = data[2]
     product = await ProductsDatabase.get_product(product_id)
@@ -269,7 +274,7 @@ async def choose_license_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs)
     licenses = await LicensesDatabase.get_licenses_by_user(seller, license_type)
     await LicensesProductsDatabase.create_table()
     disabled = await LicensesProductsDatabase.get_disabled(product_id)
-    await clb.message.edit_caption(caption = 'Choose license', reply_markup = user_keyboards.get_choose_licenses_kb(user_id,product_id,licenses,disabled))
+    await clb.message.edit_caption(caption = 'Choose license', reply_markup = user_keyboards.get_choose_licenses_kb(user_id,product_id,licenses,disabled,in_cart))
 
 
 @router.callback_query(lambda clb: clb.data.startswith("addTowishlist"))
@@ -705,6 +710,25 @@ async def upload_ask_callback_handler(message: types.Message, state: FSMContext,
     await message.answer(text=f'Updated!',reply_markup =user_keyboards.get_hide_file_kb())
 
 
+#Cart
+@router.callback_query(lambda clb: clb.data.startswith('addToCart'))
+async def addToCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
+    user_id = clb.message.chat.id
+    data = clb.data.split('_',3)
+    product_id = int(data[1])
+    license_id = int(data[2])
+    added_at = clb.message.date
+    await ShoppingCartService.add_item(user_id,product_id,license_id,added_at)
+    await choose_license_clb_handler(clb,is_clb=False,data = f'choose_license_{product_id}_{license_id}')
+
+@router.callback_query(lambda clb: clb.data.startswith('delFromCart'))
+async def delFromCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
+    user_id = clb.message.chat.id
+    data = clb.data.split('_',3)
+    product_id = int(data[1])
+    await ShoppingCartService.remove_item(user_id,product_id)
+    await choose_license_clb_handler(clb,is_clb=False,data = f'choose_license_{product_id}_0')
+
 
 #Stars_payment
    
@@ -752,38 +776,6 @@ async def paystars_clb_handler(clb: CallbackQuery,is_clb=False,  **kwargs):
     reply_markup=user_keyboards.get_paystars_kb(amount)
     )
 
-
-# @router.message(Command("refund"))
-# async def cmd_refund(message: Message, bot: Bot, command: CommandObject, l10n: FluentLocalization):
-#     # ID транзакции для рефанда
-#     # по ней можно понять, какой товар/услугу возвращает человек
-#     # и по правилам ТГ, вы можете ОТКАЗАТЬ в рефанде
-#     # но только в том случае, если условия отказа прописаны в Terms of Service вашего бота
-#     # ...
-#     # для примера, мы будем разрешать любой возврат звезд в любое время
-#     t_id = command.args
-
-#     # чекаем, указан ли ID транзакции
-#     if t_id is None:
-#         await message.answer(l10n.format_value("donate-refund-input-error"))
-#         return
-
-#     # пытаемся сделать рефанд
-#     try:
-#         await bot.refund_star_payment(
-#             user_id=message.from_user.id,
-#             telegram_payment_charge_id=t_id
-#         )
-#         await message.answer(l10n.format_value("donate-refund-success"))
-
-#     except TelegramBadRequest as e:
-#         err_text = l10n.format_value("donate-refund-code-not-found")
-
-#         if "CHARGE_ALREADY_REFUNDED" in e.message:
-#             err_text = l10n.format_value("donate-refund-already-refunded")
-
-#         await message.answer(err_text)
-#         return
 @router.pre_checkout_query()
 async def pre_checkout_query(query: PreCheckoutQuery):
     # смысл on_pre_checkout_query такой же, как и в любых других платежах
