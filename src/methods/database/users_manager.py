@@ -19,7 +19,8 @@ class UsersDatabase:
                                                         subscription INTEGER,
                                                         wallet INTEGER,
                                                         language STRING,
-                                                        channel STRING)''') as cursor:
+                                                        channel STRING,
+                                                        default_payment_method STRING)''') as cursor:
                 pass
 
     @classmethod
@@ -50,11 +51,40 @@ class UsersDatabase:
                 return result[0]
 
     @classmethod
-    async def create_user(cls, user_id: int,language:str|None = "ENG"):
+    async def create_user(
+        cls,
+        user_id: int,
+        is_seller: int = 0,
+        is_banned: int = 0,
+        is_admin: int = 0,
+        balance: float = 0.0,
+        username: str = "durov",
+        artist_name: str = "Travis Scott",
+        email: str = "ab@somegoogle.com",
+        insta: str = "",
+        subscription: int = 0,
+        wallet: int = 0,
+        language: str = "ENG",
+        channel: str = "https://t.me/prodmeta",
+        default_payment_method: str = "cryptopay"
+    ):
         async with aiosqlite.connect("src/databases/users.db") as db:
-            await db.execute(f'''INSERT INTO users("user_id", "is_seller", "is_banned", "is_admin", "balance","username","artist_name", "email","insta","subscription", "wallet", "language","channel") 
-                             VALUES ({user_id}, 0, 0, 0, 0, "durov", "Travis Scott", "ab@somegoogle.com",'', 0, 0,"ENG",'https://t.me/prodmeta')''')
+            query = '''
+            INSERT INTO users(
+                "user_id", "is_seller", "is_banned", "is_admin", "balance",
+                "username", "artist_name", "email", "insta", "subscription",
+                "wallet", "language", "channel","default_payment_method"
+            ) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            '''
+            await db.execute(
+                query,
+                (user_id, is_seller, is_banned, is_admin, balance,
+                username, artist_name, email, insta, subscription,
+                wallet, language, channel, default_payment_method)
+            )
             await db.commit()
+
 
     @classmethod
     async def get_value(cls, user_id: int, key: Any):

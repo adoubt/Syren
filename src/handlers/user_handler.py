@@ -194,14 +194,20 @@ async def generate_cart_handler(message: Message, is_clb=False,current_page:int|
             "name": product[2], # Имя товара 
             "price": license[4], # Цена товара
                 })
-
+    default_payment_method = await UsersDatabase.get_value(user_id,"default_payment_method")
     # Генерация клавиатуры с товарами
-    keyboard = user_keyboards.get_generated_cart_kb(enriched_cart, user_id, total_amount)
+    keyboard = user_keyboards.get_generated_cart_kb(enriched_cart, user_id, total_amount,payment_method=default_payment_method)
     
     # Отправляем сообщение с корзиной и клавиатурой
-    await message.answer("Your cart:", reply_markup=keyboard)
+    if not is_clb:
+        await message.answer("Your cart:", reply_markup=keyboard)
+    else:
+        await message.edit_caption("Your cart:", reply_markup=keyboard)
 
-       
+@router.callback_query(lambda clb: clb.data == 'cart')
+@new_user_handler
+async def cart_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await generate_cart_handler(clb.message, is_clb=True)       
 
         
 @router.message(F.text == "📼 My Beats")
@@ -341,51 +347,6 @@ async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=True, **kwargs):
     seller, is_sold= product[1],product[9]
     channel = await UsersDatabase.get_value(seller,'channel')
     await clb.message.edit_caption(caption = 'Added To wishlist ✔', reply_markup = user_keyboards.get_showcase_kb(product_id=product_id,is_sold=is_sold,channel=channel,already_in_wishlist=1,already_in_cart=already_in_cart))
-
-
-# @router.callback_query(lambda clb: clb.data.startswith("addTowishlist"))
-# async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-    
-#     data = clb.data.split('_',3)
-#     product_id,user_id, = data[1],data[3],data[1]
-#     product = await ProductsDatabase.get_product(product_id)
-#     await WishlistsDatabase.create_table()
-#     await WishlistsDatabase.add_to_wishlist(user_id,product_id,license_id)
-    
-#     seller, is_sold= product[1],product[9]
-#     channel = await UsersDatabase.get_value(seller,'channel')
-#     await clb.message.edit_caption(caption = 'Added To wishlist ✔', reply_markup = user_keyboards.get_showcase_kb(product_id=product_id,is_sold=is_sold,channel=channel,already_in_wishlist=1))
-
-# @router.message(F.text.startswith("🛒 wishlist"))
-# @new_user_handler
-# async def wishlist_handler(message: Message, is_clb=False, **kwargs):
-#     if is_clb:
-#         user_id = message.chat.id
-#         # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-#     else:
-#         # await message.delete()
-#         user_id = message.from_user.id
-    
-#     if await WishlistsDatabase.get_wishlist_count(user_id)==0:
-#         await WishlistsDatabase.create_table()
-#         await message.edit_text(text = "Your wishlist is Empty", reply_markup= user_keyboards.get_homepage_kb(user_id,0))
-#         return
-
-#     wishlist = await WishlistsDatabase.get_wishlist_by_user(user_id)
-
-#     for item in wishlist:
-#         license_id = item[2]
-#         license = await LicensesDatabase.get_license(license_id)
-#         license_name,price,description, license_file = license[2],license[4],license[3],license[7]
-#         product_id = item[1]
-#         product = await ProductsDatabase.get_product(product_id)
-#         mp3_link = product
-#         mp3_link = product[5]
-#         seller = product[1]
-#         await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id,license_name,price,description, license_file), caption = f'{license_name}\nYou Will Get {description}\nTotal: {price} USD')
-
-
-
 
 
 @router.callback_query(lambda clb: clb.data.startswith("delItemFromwishlist"))
@@ -778,7 +739,7 @@ async def delFromCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
     if data[4] =='license':
         await choose_license_clb_handler(clb,is_clb=False,data = f'choose_license_{product_id}_0')
     else:
-        await generate_cart_handler(clb,is_clb=True)
+        await generate_cart_handler(clb.message,is_clb=True)
 
 
 
@@ -943,3 +904,32 @@ async def successful_payment(message: Message) -> None:
     #Уведомляю продавца
     await bot.send_message(chat_id = seller_id, text =f'Congratulations! You’ve made a sale!')# тут будет клава к продаже поближе
     #приват канал для регистрации всех транзакций тут же
+
+
+@router.callback_query(F.data == "checkout")
+async def on_paystars_cancel(clb: CallbackQuery, **kwargs):
+    pass
+
+@router.callback_query(lambda clb: clb.data == 'choosePaymentMethod')
+async def choosePaymentMethod_clb_handler(clb: CallbackQuery, **kwargs):
+    user_id = clb.message.chat.id
+    default_payment_method = await UsersDatabase.get_value(user_id, "default_payment_method")
+    payment_methods = {
+        "CryptoBot", "🚧 Ton","🚧 Stars"
+    }
+    await clb.message.edit_caption(caption = f"Default payment method:\n <b>{default_payment_method}</b>",
+                                   parse_mode='HTML',
+                                   reply_markup=user_keyboards.get_payment_methods_kb(default_payment_method,payment_methods ))
+
+@router.callback_query(lambda clb: clb.data.startswith('setDefaultPaymentMethod'))
+async def setDefaultPaymentMethod_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
+    user_id = clb.message.chat.id
+    data = clb.data.split('_',1)
+    method = data[1]
+    # Проверка, начинается ли метод с 🚧
+    if method.startswith("🚧"):
+        # Отправка всплывающего сообщения (alert)
+        await clb.answer(text="This feature is not available yet.", show_alert=True)
+        return  # Прерываем дальнейшую обработку
+    await UsersDatabase.set_value(user_id,"default_payment_method",method)
+    await choosePaymentMethod_clb_handler(clb)

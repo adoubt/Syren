@@ -6,34 +6,29 @@ from loguru import logger
 logger.add("src/logs/orders.log", format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip")
 logger.add("src/logs/errors.log", format="{time} {level} {message}", level="ERROR", rotation="5 MB", compression="zip")
 
-class OrdersDAL: 
+class OrdersDAL:
     DB_PATH = "src/databases/orders.db"
     
     # SQL Queries
     CREATE_TABLE_QUERY = '''CREATE TABLE IF NOT EXISTS orders(
                                 order_id INTEGER PRIMARY KEY,
-                                user_id INTEGER,
-                                cart_id INTEGER,
-                                promo_code_id INTEGER,
-                                status TEXT, 
-                                total_amount REAL,
-                                created_at INTEGER,
-                                paid_at INTEGER)'''
-    
-    INSERT_ORDER_QUERY = '''INSERT INTO orders(
-                                user_id, cart_id, status, total_amount, created_at, paid_at, promo_code_id)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)'''
-    
+                                user_id INTEGER NOT NULL,
+                                promo_code_id INTEGER DEFAULT NULL,
+                                status TEXT CHECK(status IN ('pending', 'paid', 'expired', 'failed')) DEFAULT 'pending',
+                                total_amount REAL NOT NULL DEFAULT 0.0,
+                                payment_method TEXT,
+                                currency TEXT NOT NULL DEFAULT 'USD',
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                paid_at TIMESTAMP DEFAULT NULL)'''
+
+    INSERT_ORDER_QUERY = '''INSERT INTO orders(user_id, promo_code_id, total_amount, payment_method, cart_id)
+                            VALUES (?, ?, ?, ?, ?)'''
+
     SELECT_ORDER_VALUE_QUERY = '''SELECT {key} FROM orders WHERE order_id = ?'''
-    
     SELECT_ORDERS_BY_STATUS_QUERY = '''SELECT * FROM orders WHERE status = ?'''
-    
     SELECT_ORDERS_BY_USER_QUERY = '''SELECT * FROM orders WHERE user_id = ?{status_clause}'''
-    
     UPDATE_ORDER_VALUE_QUERY = '''UPDATE orders SET {key} = ? WHERE order_id = ?'''
-    
     DELETE_ORDERS_BY_USER_AND_STATUS_QUERY = '''DELETE FROM orders WHERE user_id = ? AND status = ?'''
-    
     SELECT_ORDER_ID_BY_USER_AND_STATUS_QUERY = '''SELECT order_id FROM orders WHERE user_id = ? AND status = ?'''
 
     @classmethod
@@ -44,14 +39,13 @@ class OrdersDAL:
             await db.commit()
 
     @classmethod
-    async def create_order(cls, user_id: int, cart_id: int, status: str, total_amount: float,
-                           created_at: int, paid_at: Optional[int] = None,
+    async def create_order(cls, user_id: int, cart_id: int, total_amount: float, payment_method: str = 'crypto',
                            promo_code_id: Optional[int] = None) -> int:
         logger.info(f"Creating order for user_id {user_id} with cart_id {cart_id}")
         async with aiosqlite.connect(cls.DB_PATH) as db:
             try:
                 cursor = await db.execute(cls.INSERT_ORDER_QUERY,
-                                          (user_id, cart_id, status, total_amount, created_at, paid_at, promo_code_id))
+                                          (user_id, promo_code_id, total_amount, payment_method, cart_id))
                 await db.commit()
                 order_id = cursor.lastrowid
                 logger.info(f"Order created with id {order_id}")
@@ -110,20 +104,19 @@ class OrdersDAL:
     async def get_order_id_by_user_and_status(cls, user_id: int, status: str) -> Optional[int]:
         logger.info(f"Getting order_id for user_id {user_id} with status {status}")
         async with aiosqlite.connect(cls.DB_PATH) as db:
-            cursor = await db.execute(cls.SELECT_ORDER_ID_BY_USER_AND_STATUS_QUERY, 
+            cursor = await db.execute(cls.SELECT_ORDER_ID_BY_USER_AND_STATUS_QUERY,
                                       (user_id, status))
             result = await cursor.fetchone()
             return result[0] if result else None
 
 
 class OrdersService:
-
     def __init__(self):
         self.orders_dal = OrdersDAL()
 
-    async def create_order(self, user_id: int, cart_id: int, total_amount: float, created_at: int,
-                           promo_code_id: Optional[int] = None) -> int: 
-        return await self.orders_dal.create_order(user_id, cart_id, 'pending', total_amount, created_at, None, promo_code_id)
+    async def create_order(self, user_id: int, cart_id: int, total_amount: float, payment_method: str = 'crypto',
+                           promo_code_id: Optional[int] = None) -> int:
+        return await self.orders_dal.create_order(user_id, cart_id, total_amount, payment_method, promo_code_id)
 
     async def get_order_status(self, order_id: int) -> Optional[str]:
         return await self.orders_dal.get_order_value(order_id, 'status')

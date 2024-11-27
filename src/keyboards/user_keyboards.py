@@ -17,33 +17,38 @@ def get_choose_licenses_kb(user_id,product_id,licenses,disabled,in_cart:int|None
     ikb = InlineKeyboardMarkup(inline_keyboard=rows)
     return ikb   
 
-def get_generated_cart_kb(cart_items, user_id, total_amount) -> InlineKeyboardMarkup:
-    keyboard = []
+def get_generated_cart_kb(cart_items, user_id, total_amount,payment_method) -> InlineKeyboardMarkup:
 
-    # Если в корзине один товар
-    if len(cart_items) == 1:
-        item = cart_items[0]
-        keyboard.append([
-            InlineKeyboardButton(text=item["name"], callback_data=f"showcase_{item['product_id']}"),
-            InlineKeyboardButton(text="🗑️", callback_data=f"delFromCart_{item['product_id']}_{item['license_id']}_{user_id}_cart")
-        ])
-    else:
-        # Если товаров больше одного
-        for item in cart_items:
-            keyboard.append([
-                InlineKeyboardButton(text=item["name"], callback_data=f"showcase_{item['product_id']}"),
-                InlineKeyboardButton(text="🗑️", callback_data=f"delFromCart_{item['product_id']}_{item['license_id']}_{user_id}_cart")
-            ])
-    
-    # Добавляем кнопки в конце списка
-    keyboard.append([
-        InlineKeyboardButton(text="🗑️ Remove All", callback_data=f"clear_cart_{user_id}")
-    ])
-    keyboard.append([
-        InlineKeyboardButton(text=f"💳 Checkout $ {total_amount}", callback_data="checkout")
-    ])
+    # Генерация кнопок для товаров
+    ikb = [
+        [
+            InlineKeyboardButton(text=item.get("name", "unknown item"), callback_data=f"showcase_{item.get('product_id', 'unknown')}"),
+            InlineKeyboardButton(text="🗑️", callback_data=f"delFromCart_{item.get('product_id', 'unknown')}_{item.get('license_id', 'unknown')}_{user_id}_cart")
+        ]
+        for item in cart_items
+    ]
 
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    # Кнопки действий
+    ikb += [
+        #[InlineKeyboardButton(text="🗑️ Remove All", callback_data=f"clear_cart_{user_id}")],
+        [InlineKeyboardButton(text=f"Method: {payment_method}", callback_data="choosePaymentMethod")],
+        [InlineKeyboardButton(text=f"💳 Checkout ${total_amount})", callback_data="checkout")]
+    ]
+
+    return InlineKeyboardMarkup(inline_keyboard=ikb)
+
+def get_payment_methods_kb(default_payment_method:str,payment_methods: list):
+    ikb = [
+        [InlineKeyboardButton(text=f'• {method} •' if method == default_payment_method else method,callback_data=f'setDefaultPaymentMethod_{method}')
+
+        ]
+        for method in payment_methods
+    ]
+    ikb+= [ 
+        [InlineKeyboardButton(text=f"Back", callback_data="cart")]
+    ]
+    return InlineKeyboardMarkup(ikb)
+
 
 def get_paystars_kb(amount)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
