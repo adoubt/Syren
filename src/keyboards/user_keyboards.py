@@ -7,9 +7,9 @@ def get_choose_licenses_kb(user_id,product_id,licenses,disabled,in_cart:int|None
          if license[0] not in disabled:
             # buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"paystars_{product_id}_{license[0]}_{user_id}")]
             if license[0] == in_cart:
-                buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"delFromCart_{product_id}_{license[0]}_{user_id}_license")]
+                buttons = buttons+[InlineKeyboardButton(text=f'In 🛒 Cart', callback_data=f"delFromCart_{product_id}_{license[0]}_{user_id}_license")]
             else:
-                buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} | {license[4]} USD', callback_data=f"addToCart_{product_id}_{license[0]}_{user_id}")]
+                buttons = buttons+[InlineKeyboardButton(text=f'{license[2]} ${license[4]}', callback_data=f"addToCart_{product_id}_{license[0]}_{user_id}")]
     
     back = []
     back.append(InlineKeyboardButton(text='Back', callback_data=f"showcase_{product_id}")) 
@@ -32,7 +32,7 @@ def get_generated_cart_kb(cart_items, user_id, total_amount,payment_method) -> I
     ikb += [
         #[InlineKeyboardButton(text="🗑️ Remove All", callback_data=f"clear_cart_{user_id}")],
         [InlineKeyboardButton(text=f"Method: {payment_method}", callback_data="choosePaymentMethod")],
-        [InlineKeyboardButton(text=f"💳 Checkout ${total_amount})", callback_data="checkout")]
+        [InlineKeyboardButton(text=f"💳 Checkout ${total_amount}", callback_data="checkout")]
     ]
 
     return InlineKeyboardMarkup(inline_keyboard=ikb)
@@ -47,7 +47,7 @@ def get_payment_methods_kb(default_payment_method:str,payment_methods: list):
     ikb+= [ 
         [InlineKeyboardButton(text=f"Back", callback_data="cart")]
     ]
-    return InlineKeyboardMarkup(ikb)
+    return InlineKeyboardMarkup(inline_keyboard=ikb)
 
 
 def get_paystars_kb(amount)-> InlineKeyboardMarkup:
@@ -139,15 +139,15 @@ def get_mylicense_kb(license) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlist:int,already_in_cart:int,price:float| None = None) -> InlineKeyboardMarkup:
+def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlist:int,already_in_cart:int,user_id: int,price:float| None = None) -> InlineKeyboardMarkup:
     if already_in_cart ==1:
-        cart_btn = [InlineKeyboardButton(text=f'Go To Cart', callback_data='cart')]
+        cart_btn = [InlineKeyboardButton(text=f'In 🛒 Cart', callback_data=f'chooseLicense_{product_id}')]
     else:
-        cart_btn = [InlineKeyboardButton(text=f'From {price} USD', callback_data=f'choose_license_{product_id}')]
+        cart_btn = [InlineKeyboardButton(text=f'From {price} USD', callback_data=f'chooseLicense_{product_id}')]
     if already_in_wishlist ==1:
-        wishlist_btn = [InlineKeyboardButton(text=f'Go To wishlist', callback_data=f'wishlist')]
+        wishlist_btn = [InlineKeyboardButton(text=f'In 🤍 Wishlist', callback_data=f'delFromWishlist_{user_id}_{product_id}_refresh')]
     else:
-        wishlist_btn = [InlineKeyboardButton(text=f'➕ Add to Wishlist', callback_data=f'addTowishlist_{product_id}')]
+        wishlist_btn = [InlineKeyboardButton(text=f'🤍', callback_data=f'addTowishlist_{product_id}')]
 
 
     channel_btn = [InlineKeyboardButton(text=f'Channel', url=channel)]
@@ -200,8 +200,8 @@ def get_settings_kb()-> InlineKeyboardMarkup:
 # def get_total_in_cart_kb()
 def get_item_in_wishlist_kb(user_id,product_id)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Buy 🛒", callback_data=f'showcase_{product_id}')],
-        [InlineKeyboardButton(text="Remove ❌", callback_data=f'delItemFromWishlist_{user_id}_{product_id}')],
+        [InlineKeyboardButton(text="🛒 Shop", callback_data=f'showcase_{product_id}'),
+        InlineKeyboardButton(text="🗑", callback_data=f'delFromWishlist_{user_id}_{product_id}_del')],
     ]) 
     return ikb
 
@@ -314,19 +314,22 @@ def get_main_buyer_kb(wishlist_count: int, cart_count: int) -> ReplyKeyboardMark
 
     rkb = ReplyKeyboardMarkup( 
         keyboard=[ 
-            [KeyboardButton(text='🏠 Home', callback_data='homepage'),
-              KeyboardButton(text=cart_view, callback_data='cart')], # Исправлено 
-              [KeyboardButton(text='⚙️ Settings', callback_data='settings'), 
-               KeyboardButton(text=wishlist_view)], # Исправлено 
-               [KeyboardButton(text='🌏 Sell Beats', callback_data='seller')] ],
+            #[KeyboardButton(text='🏠 Home', callback_data='homepage'),
+              [KeyboardButton(text='🛍 Purchases', callback_data='purchases'),
+               KeyboardButton(text=cart_view, callback_data='cart')], 
+              [KeyboardButton(text=wishlist_view),
+               KeyboardButton(text=f'🤝 Offers')], 
+               [KeyboardButton(text='⚙️ Settings', callback_data='settings'),
+                KeyboardButton(text='🌏 Sell Beats', callback_data='seller')] 
+                ],
                  resize_keyboard=True ) 
     return rkb
 
 def get_main_seller_kb() -> ReplyKeyboardMarkup:
     
     rkb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text='🏠 Home',callback_data='homepage'),
-        KeyboardButton(text='➕ New Beat')],
+        #[KeyboardButton(text='🏠 Home',callback_data='homepage'),
+        [KeyboardButton(text='➕ New Beat')],
         [KeyboardButton(text='📼 My Beats', callback_data='mybeats_0'),
         KeyboardButton(text='📂 My Licenses')],
         [KeyboardButton(text='⚙️ Settings', callback_data='settings_1'),

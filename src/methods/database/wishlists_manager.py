@@ -8,9 +8,11 @@ class WishlistsDatabase:
     async def create_table(self):
         async with aiosqlite.connect("src/databases/wishlists.db") as db:
             async with db.execute('''CREATE TABLE IF NOT EXISTS wishlists(
-                                    user_id INTEGER PRIMARY KEY,
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                    user_id INTEGER,
                                     product_id INTEGER,
-                                    license_id INTEGER
+                                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                    UNIQUE(user_id, product_id)
                                     )'''
                                   ) as cursor:
                 pass
@@ -57,7 +59,7 @@ class WishlistsDatabase:
                             product_id: int
                             ):
         async with aiosqlite.connect("src/databases/wishlists.db") as db:
-            await db.execute(f'REPLACE INTO wishlists ("user_id", "product_id") VALUES (?,?)',
+            await db.execute(f'INSERT OR IGNORE INTO wishlists ("user_id", "product_id") VALUES (?,?)',
                              (user_id,product_id))
             await db.commit()
     
@@ -69,3 +71,12 @@ class WishlistsDatabase:
                 if not result:
                     return []
                 return result
+    
+    @classmethod
+    async def is_product_in_wishlist(cls, user_id: int, product_id: int) -> bool:
+        query = '''SELECT 1 FROM wishlists WHERE user_id = ? AND product_id = ? LIMIT 1'''
+        async with aiosqlite.connect(cls.DB_PATH) as db:
+            async with db.execute(query, (user_id, product_id)) as cursor:
+                result = await cursor.fetchone()
+                # Если результат не None, значит продукт есть в вишлисте
+                return result is not None

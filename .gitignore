@@ -1,8 +1,12 @@
 .env
 # Игнорировать файлы баз данных
 src/databases/*.db
+*.sql
+*.sqlite
+src/methods/database
 # Игнорировать временные файлы
-src/logs/*.log
+src/logs/
 *.bak
 *.tmp
 venv
+*.pyc

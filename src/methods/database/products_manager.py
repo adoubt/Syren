@@ -24,7 +24,8 @@ class ProductsDatabase:
                                     tags TEXT,
                                     genre TEXT,
                                     mood TEXT,
-                                    date TEXT,
+                                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                     title TEXT,
                                     performer TEXT
                                     )'''
@@ -80,9 +81,9 @@ class ProductsDatabase:
     async def set_value(cls, product_id: int, key: Any, new_value: Any):
         async with aiosqlite.connect("src/databases/products.db") as db:
             if type(key) is int:
-                await db.execute(f'UPDATE products SET {key}={new_value} WHERE product_id={product_id}')
+                await db.execute(f'UPDATE products SET {key}={new_value}, updated_at = CURRENT_TIMESTAMP  WHERE product_id={product_id}')
             else:
-                await db.execute(f'UPDATE products SET {key}=? WHERE product_id={product_id}',(new_value,))
+                await db.execute(f'UPDATE products SET {key}=?, updated_at = CURRENT_TIMESTAMP  WHERE product_id={product_id}',(new_value,))
             await db.commit()
 
     @classmethod

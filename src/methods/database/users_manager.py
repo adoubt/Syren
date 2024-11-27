@@ -20,7 +20,8 @@ class UsersDatabase:
                                                         wallet INTEGER,
                                                         language STRING,
                                                         channel STRING,
-                                                        default_payment_method STRING)''') as cursor:
+                                                        default_payment_method STRING,
+                                                        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''') as cursor:
                 pass
 
     @classmethod
@@ -66,7 +67,7 @@ class UsersDatabase:
         wallet: int = 0,
         language: str = "ENG",
         channel: str = "https://t.me/prodmeta",
-        default_payment_method: str = "cryptopay"
+        default_payment_method: str = "CryptoBot"
     ):
         async with aiosqlite.connect("src/databases/users.db") as db:
             query = '''
@@ -139,7 +140,7 @@ class UsersDatabase:
 
     @classmethod
     async def is_admin(cls, user_id: int):
-        return (await cls.get_value(user_id, 'status')) == 1
+        return (await cls.get_value(user_id, 'is_admin')) == 1
     
     
 # INSERT INTO users("user_id", "balance", "is_banned", "status", "context") VALUES ({user_id}, 0, 0, 0, "")'

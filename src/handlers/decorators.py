@@ -28,7 +28,7 @@ def new_user_handler(function):
             logger.success(f"Новый пользователь (ID: {user_id})")
             if user_id == int(bot_id):
 
-                await UsersDatabase.set_value(user_id,'status',1)
+                await UsersDatabase.set_value(user_id,'is_admin',1)
                 #назначение бота админом для кнопок в админке(костыль, вроде пофикшен)
                 logger.info(f'[Admin] {user_id} получил права админа')
             # else:
