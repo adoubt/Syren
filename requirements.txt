@@ -1,3 +1,4 @@
+aiocpa @ https://github.com/vovchic17/aiocpa/archive/refs/heads/main.zip#sha256=8c3ac3f4f8c09ccf5806452509599e996826d94608fce3f49aeb4bd89a9b799d
 aiofiles==24.1.0
 aiogram==3.14.0
 aiohappyeyeballs==2.4.3
@@ -11,6 +12,7 @@ bitarray==3.0.0
 certifi==2024.8.30
 cffi==1.17.1
 charset-normalizer==3.4.0
+colorama==0.4.6
 frozenlist==1.5.0
 idna==3.10
 loguru==0.7.2
@@ -29,5 +31,6 @@ requests==2.32.3
 setuptools==75.3.0
 typing_extensions==4.12.2
 urllib3==2.2.3
+win32-setctime==1.1.0
 x25519==0.0.2
 yarl==1.17.1

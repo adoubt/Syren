@@ -16,7 +16,7 @@ venv/
 .env
 
 # Editor configurations
-.vscode/
+
 .idea/
 
 # Logs and temporary files

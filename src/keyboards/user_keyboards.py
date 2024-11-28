@@ -143,7 +143,7 @@ def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlis
     if already_in_cart ==1:
         cart_btn = [InlineKeyboardButton(text=f'In 🛒 Cart', callback_data=f'chooseLicense_{product_id}')]
     else:
-        cart_btn = [InlineKeyboardButton(text=f'From {price} USD', callback_data=f'chooseLicense_{product_id}')]
+        cart_btn = [InlineKeyboardButton(text=f'${price}', callback_data=f'chooseLicense_{product_id}')]
     if already_in_wishlist ==1:
         wishlist_btn = [InlineKeyboardButton(text=f'In 🤍 Wishlist', callback_data=f'delFromWishlist_{user_id}_{product_id}_refresh')]
     else:

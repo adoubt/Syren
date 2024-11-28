@@ -22,6 +22,11 @@ class CartItem:
     license_id: int
     added_at: int
 
+@dataclass
+class CartCouponCode:
+    cart_id: int
+    coupon_code_id:int
+
 
 class Database:
     """Асинхронный класс для работы с базой данных."""
@@ -74,6 +79,14 @@ class Database:
                              added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                              UNIQUE(product_id,cart_id)
                              FOREIGN KEY (cart_id) REFERENCES carts(cart_id) ) ''') 
+            
+            await db.execute(''' CREATE TABLE IF NOT EXISTS carts_coupon_codes (
+                              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                             cart_id INTEGER NOT NULL, 
+                             coupon_code_id iNTEGER ,
+                             UNIQUE(cart_id,coupon_code_id)
+                             FOREIGN KEY (cart_id) REFERENCES carts(cart_id) ) ''') 
+
             await db.commit()
 
 class CartManager:
@@ -111,14 +124,19 @@ class CartManager:
             'UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE cart_id = ?',
             (cart.cart_id,)
         )
-
+    async def apply_coupon(self,cart:Cart)->None:
+        """Активирует купон"""
+        await self.db.execute(
+            'UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE cart_id = ?',
+            (cart.cart_id,)
+        )
 class CartItemManager:
     """Менеджер для работы с товарами в корзине."""
 
     def __init__(self, db: Database):
         self.db = db
   
-
+  
     async def add_item_to_cart(self, cart: Cart, product_id: int, license_id: int, quantity: int = 1) -> None:
         """Добавить товар в корзину."""
         await self.db.execute(
@@ -163,7 +181,20 @@ class CartItemManager:
             (product_id,cart.cart_id,)
         )
         return cart_item if cart_item else None
+
+class CartCouponCodeManager:
+    """Сервис для работы с Coupon Codes."""
     
+    def __init__(self ):
+        self.db = Database()
+    async def add_item_to_cart(self, cart: Cart, coupon_code_id: int) -> None:
+        """Применить Coupon Code к корзине."""
+        await self.db.execute(
+            'REPLACE INTO carts_coupon_codes (cart_id, coupon_code_id) VALUES (?, ?,)', 
+            (cart.cart_id, coupon_code_id)
+        )
+
+
 class ShoppingCartService:
     """Сервис для работы с корзинами и товарами."""
 
@@ -171,10 +202,13 @@ class ShoppingCartService:
         self.db = Database()
         self.cart_manager = CartManager(self.db)
         self.cart_item_manager = CartItemManager(self.db)
-        self._initialize_db() 
-    def _initialize_db(self): 
-        loop = asyncio.get_event_loop() 
-        loop.run_until_complete(self.db.create_tables())
+
+    async def _initialize_db(self):
+        """Инициализация БД асинхронно."""
+        # Здесь не нужно использовать loop.run_until_complete, просто используйте await
+        await self.db.create_tables()
+    
+
     async def get_or_create_cart(self, user_id: int) -> Cart:
         """Получить корзину или создать новую."""
         cart = await self.cart_manager.get_cart_by_user_id(user_id)

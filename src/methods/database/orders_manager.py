@@ -114,6 +114,9 @@ class OrdersService:
     def __init__(self):
         self.orders_dal = OrdersDAL()
 
+    async def create_table(self)-> None:
+        await self.orders_dal.create_table()
+        
     async def create_order(self, user_id: int, cart_id: int, total_amount: float, payment_method: str = 'crypto',
                            promo_code_id: Optional[int] = None) -> int:
         return await self.orders_dal.create_order(user_id, cart_id, total_amount, payment_method, promo_code_id)

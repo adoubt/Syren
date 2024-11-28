@@ -17,7 +17,7 @@ class LicensesDatabase:
                                     feature INTEGER,
                                     license_type INTEGER,
                                     min_offer_price REAL,
-                                    license_file STRING,
+                                    markdown_template int,
                                     is_archived INTEGER,
                                     is_offer_only INTEGER,
                                     is_active INTEGER
