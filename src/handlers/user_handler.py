@@ -15,8 +15,7 @@ from src.methods.database.orders_manager import OrdersService
 from src.methods.database.carts_manager import ShoppingCartService
 shopping_cart_service = ShoppingCartService()
 from src.methods.database.products_manager import ProductsDatabase
-from src.methods.database.licenses_manager import LicensesDatabase
-from src.methods.database.licenses_products_manager import LicensesProductsDatabase
+from src.methods.database.licenses_manager import LicensesDatabase,LicensesProductsDatabase
 from src.methods.database.wishlists_manager import WishlistsDatabase
 # from src.methods.database.sales_manager import SalesDatabase
 # from src.methods.payment import aaio_manager
