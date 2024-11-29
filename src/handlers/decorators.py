@@ -3,7 +3,7 @@ from src.methods.database.licenses_manager import LicensesDatabase
 from aiogram.types import Message
 
 from loguru import logger
-from src.misc import bot,bot_id
+from src.misc import bot_id
 
 def new_seller_handler(function):
     async def _new_seller_handler(*args, **kwargs):

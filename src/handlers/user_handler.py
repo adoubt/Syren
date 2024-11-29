@@ -17,7 +17,7 @@ shopping_cart_service = ShoppingCartService()
 from src.methods.database.products_manager import ProductsDatabase
 from src.methods.database.licenses_manager import LicensesDatabase,LicensesProductsDatabase
 from src.methods.database.wishlists_manager import WishlistsDatabase
-# from src.methods.database.sales_manager import SalesDatabase
+
 # from src.methods.payment import aaio_manager
 # from src.methods.payment.payment_processing import ProcessOrder
 
@@ -111,23 +111,11 @@ async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 
 
 
-# @router.message(F.text == "🏠 Home")
-# @new_user_handler
-# async def homepage_handler(message: Message, is_clb=False, **kwargs):
-  
-#     user_id = message.from_user.id
-#     await WishlistsDatabase.create_table()
-#     wishlist_count = await WishlistsDatabase.get_wishlist_count(user_id)
-#     await message.answer(text = f'Лучший маркетплейс музыки.\n Подписывайтесь на наш канал (линк).',reply_markup = user_keyboards.get_homepage_kb(user_id,wishlist_count))
 
 @router.message(F.text == "⚙️ Settings")
 @new_user_handler
 async def settings_handler(message: Message, is_clb=False, **kwargs):
-    # if is_clb:
-    #     await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-    # else:
-    #     await message.delete()
-    user_id = message.from_user.id
+    user_id = message.chat.id if is_clb else message.from_user.id
 
     await message.answer(text = f'Settings',reply_markup = user_keyboards.get_settings_kb())
 
@@ -225,12 +213,7 @@ async def offers_handler(message: Message, is_clb=False,**kwargs):
 @router.message(F.text == "📼 My Beats")
 @new_user_handler
 async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
-    if is_clb:
-        user_id = message.chat.id
-        # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-    else:
-        # await message.delete()
-        user_id = message.from_user.id
+    user_id = message.chat.id if is_clb else message.from_user.id
     total_beats = await ProductsDatabase.get_count_by_user(user_id)
     if total_beats == 0:
         await message.answer('Nothing uploaded yet, go to ➕ New Beat')
@@ -266,41 +249,11 @@ async def mylicenses_handler(message: Message, is_clb=False, **kwargs):
 @new_user_handler
 async def mylicenses_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     await mylicenses_handler(clb.message, is_clb=True)
-# @router.message(F.text == "📼 My Beats")
-# @new_user_handler
-# async def mybeats_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
-#     if is_clb:
-#         user_id = message.chat.id
-#         # await bot.delete_message(chat_id=message.chat.id,message_id=message.message_id)
-#     else:
-#         # await message.delete()
-#         user_id = message.from_user.id
-#     total_beats = await ProductsDatabase.get_count_by_user(user_id)
-#     if total_beats == 0:
-#         await message.answer('Nothing uploaded yet, go to ➕ New Beat')
-#         return
-#     total_pages = (total_beats //10) + 1
-#     if current_page >= total_pages:
-#         current_page = total_pages
-#     if current_page < 0:
-#         current_page = 0
-    
-#     beats = await ProductsDatabase.get_all_by_user(user_id, current_page*10)
-#     if is_clb:
-#         await message.edit_text(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
-#     else:
-#         await message.answer(text=f'My Beats ({total_beats}):', reply_markup=user_keyboards.get_my_beats_kb(beats, current_page,total_pages))
-
 
 @router.callback_query(lambda clb: clb.data == 'start')
 @new_user_handler
 async def start_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     await start_handler(clb.message, is_clb=True)
-
-@router.callback_query(lambda clb: clb.data == 'homepage')
-@new_user_handler
-async def homepage_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
-    await homepage_handler(clb.message, is_clb=True)
 
 
 @router.callback_query(lambda clb: clb.data == 'settings')
@@ -415,6 +368,7 @@ async def licenses_clb_handler(clb: CallbackQuery, product_id:int|None = None, i
         await bot.edit_message_reply_markup(chat_id=clb.message.chat.id, message_id=clb.message.message_id,reply_markup = user_keyboards.get_product_licenses_kb(product_id, licenses,disabled))
     else:
         await clb.message.edit_text(text=f'Licenses:',reply_markup = user_keyboards.get_product_licenses_kb(product_id, licenses,disabled))   
+
 @router.callback_query(lambda clb: clb.data.startswith('files'))
 @new_user_handler
 async def files_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
