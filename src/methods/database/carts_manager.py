@@ -1,4 +1,4 @@
-import aiosqlite, asyncio
+import aiosqlite
 from typing import List, Tuple, Optional
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -9,8 +9,7 @@ class Cart:
     cart_id: int
     user_id: int
     status: str
-    created_at: int
-    updated_at: int
+    
 
 
 @dataclass
@@ -20,12 +19,12 @@ class CartItem:
     product_id: int
     quantity: int
     license_id: int
-    added_at: int
+
 
 @dataclass
-class CartCouponCode:
+class AppliedCouponCode:
     cart_id: int
-    coupon_code_id:int
+    coupon_id:int
 
 
 class Database:
@@ -80,11 +79,12 @@ class Database:
                              UNIQUE(product_id,cart_id)
                              FOREIGN KEY (cart_id) REFERENCES carts(cart_id) ) ''') 
             
-            await db.execute(''' CREATE TABLE IF NOT EXISTS carts_coupon_codes (
-                              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+            await db.execute(''' CREATE TABLE IF NOT EXISTS applied_coupons (
+                             id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
                              cart_id INTEGER NOT NULL, 
-                             coupon_code_id iNTEGER ,
-                             UNIQUE(cart_id,coupon_code_id)
+                             coupon_id iNTEGER ,
+                             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                             UNIQUE(cart_id,coupon_id)
                              FOREIGN KEY (cart_id) REFERENCES carts(cart_id) ) ''') 
 
             await db.commit()
@@ -124,12 +124,7 @@ class CartManager:
             'UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE cart_id = ?',
             (cart.cart_id,)
         )
-    async def apply_coupon(self,cart:Cart)->None:
-        """Активирует купон"""
-        await self.db.execute(
-            'UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE cart_id = ?',
-            (cart.cart_id,)
-        )
+
 class CartItemManager:
     """Менеджер для работы с товарами в корзине."""
 
@@ -182,16 +177,17 @@ class CartItemManager:
         )
         return cart_item if cart_item else None
 
-class CartCouponCodeManager:
+class AppliedCouponCodeManager:
     """Сервис для работы с Coupon Codes."""
     
-    def __init__(self ):
-        self.db = Database()
-    async def add_item_to_cart(self, cart: Cart, coupon_code_id: int) -> None:
-        """Применить Coupon Code к корзине."""
+    def __init__(self, db: Database):
+        self.db = db
+
+    async def apply_coupon(self, cart: Cart, coupon_id) -> None:
+        """Применить Coupon Code к товаром в корзине."""
         await self.db.execute(
-            'REPLACE INTO carts_coupon_codes (cart_id, coupon_code_id) VALUES (?, ?,)', 
-            (cart.cart_id, coupon_code_id)
+            'REPLACE INTO applied_coupons (cart_id, coupon_id) VALUES (?, ?,)', 
+            (cart.cart_id, coupon_id)
         )
 
 
@@ -202,6 +198,7 @@ class ShoppingCartService:
         self.db = Database()
         self.cart_manager = CartManager(self.db)
         self.cart_item_manager = CartItemManager(self.db)
+        self.applied_coupon_manager = AppliedCouponCodeManager(self.db)
 
     async def _initialize_db(self):
         """Инициализация БД асинхронно."""
@@ -253,3 +250,7 @@ class ShoppingCartService:
         cart = await self.get_or_create_cart(user_id)
         return await self.cart_item_manager.check_item_in_cart(cart,product_id)
 
+    async def apply_coupon(self,user_id:int, coupon_id)-> None:
+        """Применить купон"""
+        cart = await self.get_or_create_cart(user_id)
+        await self.applied_coupon_manager.apply_coupon(cart,coupon_id,)
