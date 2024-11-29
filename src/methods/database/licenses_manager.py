@@ -1,6 +1,6 @@
 
-import aiosqlite
-from typing import Any
+import aiosqlite,aiofiles
+from typing import Any,Optional
 
 
 class LicensesDatabase:
@@ -176,11 +176,11 @@ class LicensesDatabase:
     async def set_default(cls, user_id:int):
         await cls.create_table()
         await cls.del_all_by_user(user_id=user_id)
-        await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=1000,feature=1,license_type=1,license_file='file_id contract',is_active=1,)
-        await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=1500,feature=0,license_type=2,license_file='file_id contract',is_active=1,)
-        await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=3000,feature=0,license_type=3,license_file='file_id contract',is_active=1,)
-        await cls.create_license(user_id=user_id,name="Unlimited",description='MP3 + WAV + STEMS',price=4500,feature=0,license_type=4,license_file='file_id contract',is_active=1,)
-        await cls.create_license(user_id=user_id,name="Exclusive",description='MP3 + WAV + STEMS',price=7000,feature=0,license_type=5,license_file='file_id contract',is_active=1,)
+        await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=20,feature=1,license_type=1,license_file=None,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=30,feature=0,license_type=2,license_file=None,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=60,feature=0,license_type=3,license_file=None,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Unlimited",description='MP3 + WAV + STEMS',price=100,feature=0,license_type=4,license_file=None,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Exclusive",description='MP3 + WAV + STEMS',price=250,feature=0,license_type=5,license_file=None,is_active=1,)
 
 
 class LicensesProductsDatabase:
@@ -231,4 +231,71 @@ class LicensesProductsDatabase:
             await db.execute(f'DELETE FROM licenses_products WHERE license_id = {license_id} AND product_id = {product_id}')
             await db.commit()
    
+class LicenseTemplates:
+
+    @classmethod
+    async def create_table(self):
+        async with aiosqlite.connect("src/databases/licenses") as db:
+            async with db.execute('''CREATE TABLE IF NOT EXISTS templates (
+    template_id INTEGER PRIMARY KEY AUTOINCREMENT,  -- Уникальный идентификатор шаблона
+    license_id INTEGER DEFAULT NULL,       -- ID лицензии (NULL для дефолтного шаблона)
+    markdown TEXT NOT NULL,                -- Шаблон договора в формате Markdown
+    UNIQUE (license_id),                   -- Один шаблон на одну лицензию
+    FOREIGN KEY (license_id) REFERENCES licenses(id) ON DELETE CASCADE);'''
+                                  ) as cursor:
+                pass
     
+    @classmethod
+    async def upsert_template(cls, license_id: Optional[int], markdown: str) -> None:
+        """
+        Вставка или обновление шаблона.
+        Если markdown совпадает с дефолтным, связываем license_id с дефолтным шаблоном.
+        :param license_id: ID лицензии (None для дефолтного шаблона)
+        :param markdown: Текст шаблона в формате Markdown
+        """
+        async with aiosqlite.connect("src/databases/licenses") as db:
+            # Попытка вставить дефолтный шаблон
+            insert_default_query = '''
+            INSERT OR IGNORE INTO templates (markdown)
+            VALUES (?)
+            '''
+            cursor = await db.execute(insert_default_query, (markdown,))
+            template_id = cursor.lastrowid
+
+            # Если добавлена новая запись с license_id=NULL
+            if template_id == 0 :
+                return 
+                
+            
+            # Если указано license_id, обновляем её в дефолтной записи
+            if license_id is not None:
+                # Обновляем license_id в дефолтной записи
+                update_license_query = '''
+                UPDATE templates
+                SET license_id = ?
+                WHERE template_id = ? AND license_id IS NULL
+                '''
+                await db.execute(update_license_query, (license_id, template_id))
+
+                # Удаляем другие записи с этим license_id
+                delete_other_query = '''
+                DELETE FROM templates
+                WHERE license_id = ? AND template_id != ?
+                '''
+                await db.execute(delete_other_query, (license_id, template_id))
+
+    
+    @classmethod
+    async def initialize_default_markdown(cls):
+        async with aiofiles.open("src/default_markdown.md", mode="r", encoding="utf-8") as f:
+                default_markdown = await f.read()
+                await cls.upsert_template(default_markdown)
+    
+    @classmethod
+    async def get_markdown(cls,license_id) -> str:         
+           async with aiosqlite.connect("src/databases/licenses") as db:
+                cursor = await db.execute('SELECT markdown FROM templates WHERE license_id IS NULL LIMIT 1')
+                row = await cursor.fetchone()
+                return row[0] if row else '' 
+        
+
