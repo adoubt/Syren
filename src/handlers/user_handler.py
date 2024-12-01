@@ -1,11 +1,11 @@
 import asyncio
 from aiogram import types
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.filters import Command,StateFilter
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, InputMediaDocument, InputMediaAudio
+from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, InputMediaDocument, InputMediaAudio, InputFile
 from aiogram.fsm.context import FSMContext
-
+import io
 from loguru import logger
 
 from src.keyboards import user_keyboards
@@ -15,7 +15,7 @@ from src.methods.database.orders_manager import OrdersService
 from src.methods.database.carts_manager import ShoppingCartService
 shopping_cart_service = ShoppingCartService()
 from src.methods.database.products_manager import ProductsDatabase
-from src.methods.database.licenses_manager import LicensesDatabase,LicensesProductsDatabase
+from src.methods.database.licenses_manager import LicensesDatabase,LicensesProductsDatabase, LicenseTemplates
 from src.methods.database.wishlists_manager import WishlistsDatabase
 
 # from src.methods.payment import aaio_manager
@@ -38,63 +38,63 @@ from src.methods.payment.TON.connector import get_connector
 @router.message(Command("start"))
 @new_user_handler
 async def start_handler(message: Message, is_clb=False, product_id:int| None=None,**kwargs):
-    await WishlistsDatabase.create_table()
-    
-
     user_id = message.chat.id if is_clb else message.from_user.id
-    
+    wishlist_count = await WishlistsDatabase.get_wishlist_count(user_id)
+    cart_count = await shopping_cart_service.count_items_in_cart(user_id)
     if not is_clb:
-        wishlist_count = await WishlistsDatabase.get_wishlist_count(user_id)
-        cart_count = await shopping_cart_service.count_items_in_cart(user_id)
+       
         text = 'Buy, sell, store beats on Syren with cryptocurrency whenever you want. <a href="https://t.me/CryptoBotEN/13">Learn more ></a>\n\nJoin <a href="https://t.me/CryptoBotEN">our channel</a> and <a href="https://t.me/CryptoBotEnglish">our chat</a>.'
         await message.answer(text=text,parse_mode="HTML",disable_web_page_preview=True, reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count,cart_count))
     
         
     connector = get_connector(user_id)
     connected = await connector.restore_connection()
-
-    if message.text != "/start" and message.text!="🌏 Buy Beats":
-        if product_id is None:
-            data = message.text.split(" ",1)[-1]
-            product_id = int(data)
-        product = await ProductsDatabase.get_product(product_id)
-        # license_type=5
-        # stems_link = product[7]
-        # wav_link = product[6]
-        mp3_link = product[5]
-        # if stems_link =='':
-        #     license_type=2
-        # if wav_link !='':
-        #     license_type=1
-        # if mp3_link !='':
-        #     license_type=0
-        
-        image_link = product[8]
-        is_sold = product[9]
-        collab = product[11]
-        tags = product[12]
-        seller = product[1]
-        featured_price = await LicensesDatabase.get_feature_by_user(seller)
-        channel = await UsersDatabase.get_value(seller,"channel")
-        if mp3_link == -1:
-            await message.answer("404..")
-        else:
-            already_in_wishlist = True if await WishlistsDatabase.get_value('product_id',user_id) == int(product_id) else False
-            already_in_cart = True if await shopping_cart_service.check_item_in_cart(user_id,product_id) else False
-            ikb = user_keyboards.get_showcase_kb(product_id=product_id,
-                                                price=featured_price,
-                                                is_sold=is_sold,
-                                                channel=channel,
-                                                already_in_wishlist=already_in_wishlist,
-                                                already_in_cart=already_in_cart,
-                                                user_id=user_id)
+    try:
+        if message.text != "/start" and message.text!="🌏 Buy Beats":
+            if product_id is None:
+                data = message.text.split(" ",1)[-1]
+                product_id = int(data)
+            product = await ProductsDatabase.get_product(product_id)
+            # license_type=5
+            # stems_link = product[7]
+            # wav_link = product[6]
+            mp3_link = product[5] 
+            # if stems_link =='':
+            #     license_type=2
+            # if wav_link !='':
+            #     license_type=1
+            # if mp3_link !='':
+            #     license_type=0
             
-            if message.audio:
-                await message.edit_caption( reply_markup=ikb, caption = '')
+            image_link = product[8]
+            is_sold = product[9]
+            collab = product[11]
+            tags = product[12]
+            seller = product[1]
+            price = await LicensesDatabase.get_feature_by_user(seller)
+            if price == -1:
+                price = await LicensesDatabase.get_min_price_by_user(seller)
+            channel = await UsersDatabase.get_value(seller,"channel")
+            if mp3_link == -1:
+                await message.answer("404..")
             else:
+                already_in_wishlist = True if await WishlistsDatabase.get_value('product_id',user_id) == int(product_id) else False
+                already_in_cart = True if await shopping_cart_service.check_item_in_cart(user_id,product_id) else False
+                ikb = user_keyboards.get_showcase_kb(product_id=product_id,
+                                                    price=price,
+                                                    is_sold=is_sold,
+                                                    channel=channel,
+                                                    already_in_wishlist=already_in_wishlist,
+                                                    already_in_cart=already_in_cart,
+                                                    user_id=user_id)
                 
-                await message.answer_audio(audio=mp3_link, reply_markup=ikb , caption = '')
-            
+                if message.audio:
+                    await message.edit_caption( reply_markup=ikb, caption = '')
+                else:
+                    
+                    await message.answer_audio(audio=mp3_link, reply_markup=ikb , caption = '')
+    except: 
+        await message.answer('Wassap?', reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count,cart_count) )            
    
     # if start_photo =="":
     #     await message.answer(text = text, parse_mode="HTML")
@@ -131,7 +131,6 @@ async def buyer_handler(message: Message, is_clb=False, **kwargs):
 @new_user_handler
 async def wishlist_handler(message: Message, is_clb=False,current_page:int|None = 0,**kwargs):
     user_id = message.chat.id if is_clb else message.from_user.id
-    await WishlistsDatabase.create_table()
     if await WishlistsDatabase.get_wishlist_count(user_id)==0:
         
         await message.answer(text = "Wishlist is Empty")
@@ -142,6 +141,10 @@ async def wishlist_handler(message: Message, is_clb=False,current_page:int|None 
     for item in wishlist:
         product_id = item[2]
         product = await ProductsDatabase.get_product(product_id)
+        if product == -1: 
+            await WishlistsDatabase.del_product_from_wishlists(product_id)
+            await message.answer(text = "Please open Wishlist again")
+            return
         #Лишний раз лезу в бд
         mp3_link = product[5]
         await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
@@ -176,7 +179,7 @@ async def generate_cart_handler(message: Message, is_clb=False,current_page:int|
     for item, product, license in zip(cart_items, products_results, licenses_results): 
         total_amount += license[4] # Цена товара 
         enriched_cart.append({ 
-            "cart_item_id": item.cart_item_id, 
+            "item_id": item.item_id, 
             "cart_id": item.cart_id, 
             "product_id": item.product_id, 
             "quantity": item.quantity, 
@@ -297,7 +300,6 @@ async def chooseLicense_clb_handler(clb: CallbackQuery, is_clb=True, data:str|No
     if mp3_link =='':
         license_type=0
     licenses = await LicensesDatabase.get_licenses_by_user(seller, license_type)
-    await LicensesProductsDatabase.create_table()
     disabled = await LicensesProductsDatabase.get_disabled(product_id)
     await clb.message.edit_caption(caption = 'Choose license', reply_markup = user_keyboards.get_choose_licenses_kb(user_id,product_id,licenses,disabled,in_cart))
 
@@ -308,7 +310,6 @@ async def addTowishlist_clb_handler(clb: CallbackQuery, is_clb=True, **kwargs):
     data = clb.data.split('_',1)
     product_id, = data[1]
     #product = await ProductsDatabase.get_product(product_id)
-    await WishlistsDatabase.create_table()
     await WishlistsDatabase.add_to_wishlist(user_id,product_id)
     # already_in_cart = 1 if await shopping_cart_service.check_item_in_cart(user_id,product_id) else 0
     # seller, is_sold= product[1],product[9]
@@ -362,7 +363,6 @@ async def licenses_clb_handler(clb: CallbackQuery, product_id:int|None = None, i
         license_type=0
     
     licenses = await LicensesDatabase.get_licenses_by_user(seller, license_type)
-    await LicensesProductsDatabase.create_table()
     disabled = await LicensesProductsDatabase.get_disabled(product_id)
     if is_clb:
         await bot.edit_message_reply_markup(chat_id=clb.message.chat.id, message_id=clb.message.message_id,reply_markup = user_keyboards.get_product_licenses_kb(product_id, licenses,disabled))
@@ -498,12 +498,21 @@ class NewBeatState(StatesGroup):
 @router.message(F.text =="➕ New Beat")
 @new_user_handler
 async def newbeat_handler(message: Message,state: FSMContext, is_clb=False,**kwargs):
+    
+    user_id = message.chat.id if is_clb else message.from_user.id
+    total_beats = await ProductsDatabase.get_count_by_user(user_id)
+    total_licenses = await LicensesDatabase.get_count_by_user(user_id)
+
+    if total_beats == 0 and total_licenses == 0: await LicensesDatabase.set_default(user_id)
     await state.set_state(NewBeatState.mp3_ask)
-    await message.answer(text= f'Upload or forward .MP3', reply_markup = user_keyboards.get_cancel_kb())
+
+    error_text = "Error: timed out. Please try again.\n\n" if is_clb else ''
+    await message.answer(text= f'{error_text}Upload or forward .MP3', reply_markup = user_keyboards.get_cancel_kb())
 
 @router.callback_query(lambda clb: clb.data == 'cancel')
 async def cancel_handler(clb: CallbackQuery,state = FSMContext, is_clb=False, **kwargs) -> None:
-    
+
+    await bot.delete_message(chat_id=clb.message.chat.id,message_id=clb.message.message_id - 1)
     await clb.message.delete()
     current_state = await state.get_state()
     if current_state is None:
@@ -513,7 +522,7 @@ async def cancel_handler(clb: CallbackQuery,state = FSMContext, is_clb=False, **
 
 
 @router.message(NewBeatState.mp3_ask)
-async def mp3_ask_callback_handler(message: types.Message, state: FSMContext, **kwargs):
+async def mp3_ask_callback_handler(message: types.Message, state= FSMContext, **kwargs):
     user_id = message.from_user.id
     if message.audio is None or message.document is None:
         
@@ -550,10 +559,15 @@ async def skip_stems_handler(clb: CallbackQuery, state : FSMContext, is_clb=Fals
     await state.set_state(NewBeatState.stems_ask)
     await stems_ask_callback_handler(message = clb.message,state= state, is_skip=True,is_clb=True)
     await clb.answer()
+
 @router.message(NewBeatState.stems_ask)
 async def stems_ask_callback_handler(message: types.Message, state: FSMContext,is_clb=False, is_skip= False,**kwargs):
     
     data = await state.get_data() 
+    if data == {}:
+        await message.answer()
+        await newbeat_handler(message,state,True)
+        return
     user_id = data[0]
     performer = data[1]
     title = data[1]
@@ -561,14 +575,12 @@ async def stems_ask_callback_handler(message: types.Message, state: FSMContext,i
     mp3_link = data[4]
     wav_link = data[5]
     await state.clear()
-    await ProductsDatabase.create_table()
     if is_skip:
-        await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=mp3_link,wav_link=wav_link, preview_link=mp3_link)
+        await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=mp3_link,wav_link=wav_link, preview_link=mp3_link, performer=performer,title = title)
     
     else:
         stems_link = message.document.file_id
-        await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=mp3_link,wav_link=wav_link,stems_link=stems_link, preview_link=mp3_link)
-    
+        await ProductsDatabase.create_product(user_id = user_id,name = name,mp3_link=mp3_link,wav_link=wav_link,stems_link=stems_link, preview_link=mp3_link,performer=performer,title = title)
     
     logger.success(f"New product {name} by {user_id}")
     await message.answer(text= f'Created, go to 📼 My Beats')
@@ -608,7 +620,7 @@ async def mylicense_clb_handler(clb: CallbackQuery, license_id:int|None=None,is_
         data = clb.data.split('_',1)
         license_id = int(data[1])
     license = await LicensesDatabase.get_license(license_id) 
-    is_archived,feature, is_active = license[9], license[5], license[11]
+    is_archived,feature, is_active = license[10], license[5], license[12]
     meta_preview = ''
     if is_archived == 1:
         meta_preview += '🗃'
@@ -616,13 +628,23 @@ async def mylicense_clb_handler(clb: CallbackQuery, license_id:int|None=None,is_
         meta_preview += '⭐️'
     if is_active !=1:
         meta_preview +='💤'
-    await clb.message.edit_text(text=f'{meta_preview}<b>{license[2]}</b>',parse_mode="HTML",reply_markup=user_keyboards.get_mylicense_kb(license))
+    user_id = clb.chat.id if is_clb else clb.message.chat.id 
+    message_id = clb.message_id-1 if is_clb else clb.message.message_id
+    
+    if is_clb: 
+        await bot.delete_messages(chat_id=user_id,message_ids={clb.message_id,clb.message_id-1})
+        # await bot.delete_message(chat_id=user_id,message_id=clb.message_id) 
+        await bot.send_message(chat_id=user_id,text=f'{meta_preview}<b>{license[2]}</b>',parse_mode="HTML",reply_markup=user_keyboards.get_mylicense_kb(license))
+    else:
+        await bot.edit_message_text(chat_id=user_id,message_id=message_id,text=f'{meta_preview}<b>{license[2]}</b>',parse_mode="HTML",reply_markup=user_keyboards.get_mylicense_kb(license))
+    
 
 class LicenseEdit(StatesGroup):
     name_ask = State()
     desc_ask = State()
     price_ask = State()
     upload_ask = State()
+    any_state = State(state='*')
 
 @router.callback_query(lambda clb: clb.data.startswith('licenseedit'))
 async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False, state = FSMContext, **kwargs):
@@ -630,6 +652,7 @@ async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False, state = FSMCo
     user_id = clb.message.chat.id
     data = clb.data.split('_',3)
     license_id = data[2]
+    
     if data[1] == 'name':
         await state.set_state(LicenseEdit.name_ask)
         await clb.message.edit_text(text = 'Imput new name',reply_markup=user_keyboards.get_cancel_kb())
@@ -643,6 +666,7 @@ async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False, state = FSMCo
         r = await LicensesDatabase.toggle_license_active(license_id)
         if r ==-1:
             await clb.message.edit_text(text = 'Error: Some fields are empty')
+            
         else:
             await mylicense_clb_handler(clb,license_id)
     elif data[1] == 'price':
@@ -658,26 +682,89 @@ async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False, state = FSMCo
 
     elif data[1] == 'showfile':
         license= await LicensesDatabase.get_license(license_id)
-        license_file = license[8]
-        await clb.message.answer_document(document = license_file,reply_markup =user_keyboards.get_hide_file_kb())
+        license_file_id = license[9]
+        #тут шерю дефолт
+        #тут шерю дефолт
+        #тут шерю дефолт
+        #тут шерю дефолт
+        if license_file_id is not None:
+            await clb.message.answer_document(document = license_file_id,reply_markup =user_keyboards.get_hide_file_kb())
+        else:
+            markdown = await LicenseTemplates.get_markdown(seller_id=user_id)
+            file_like_object = io.BytesIO(markdown.encode('utf-8'))
+            file_like_object.seek(0)  # Переходим в начало файла
+            await clb.message.answer_document(document=InputFile(file_like_object, filename="template_license.txt"),reply_markup=user_keyboards.get_hide_file_kb())
+       
     elif data[1] == 'uploadfile':
         await state.set_state(LicenseEdit.upload_ask)
-        await state.set_data([license_id])
+        # await state.set_data([license_id])
         await clb.message.edit_text(text = 'Upload or forward yor contract file',reply_markup=user_keyboards.get_cancel_kb())
     elif data[1] == 'delete': pass   
-
-@router.message(LicenseEdit.upload_ask)
-async def upload_ask_callback_handler(message: types.Message, state: FSMContext, **kwargs):
+    await state.set_data([license_id])
+# Обработчик для состояний в LicenseEdit
+@router.message(StateFilter(LicenseEdit))  # Фильтруем по группе состояний LicenseEdit
+async def handle_license_edit(message: types.Message, state: FSMContext, **kwargs):
+    # Получаем текущее состояние
+    current_state = await state.get_state()
     data = await state.get_data() 
     license_id= data[0]
-    if message.document is None:
-        await state.clear()
-        return
-    license_file = message.document.file_id
+    if current_state == LicenseEdit.name_ask.state:
+        if not message.text:
+            await message.delete()
+            await bot.edit_message_text(text = 'No text given, pls input again!', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb())
+            await state.set_state(LicenseEdit.name_ask)
+            return        
+        key = "name"
+        new_value = message.text
+
+    elif current_state == LicenseEdit.desc_ask.state:
+        if not message.text:
+            await message.delete()
+            await bot.edit_message_text(text = 'No text given, pls input again!', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb())
+            await state.set_state(LicenseEdit.desc_ask)
+            return
+        key = "description"
+        new_value = message.text
+        
+    elif current_state == LicenseEdit.price_ask.state:
+        try :
+            new_value = float(message.text.replace(",", "."))
+        except:
+            await message.delete()
+            await bot.edit_message_text(text = 'Only numbers $', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb()) 
+            await state.set_state(LicenseEdit.price_ask)
+            return
+        key ='price'
+
+    elif current_state == LicenseEdit.upload_ask.state:
+        
+        if not message.document:
+            await message.delete()
+            await bot.edit_message_text(text = 'Please send file as document..', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb()) 
+            await state.set_state(LicenseEdit.upload_ask)
+            return
+        key = "license_file_id"
+        new_value = message.document.file_id
+        
+        
+    await LicensesDatabase.set_value(license_id,key,new_value)
     
+    # await bot.edit_message_text(text = 'Updated!', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_hide_file_kb()) 
+    await mylicense_clb_handler(message,license_id, is_clb = True)
+
     await state.clear()
-    await LicensesDatabase.set_value(license_id,"license_file",license_file)
-    await message.answer(text=f'Updated!',reply_markup =user_keyboards.get_hide_file_kb())
+# @router.message(LicenseEdit.upload_ask)
+# async def upload_ask_callback_handler(message: types.Message, state: FSMContext, **kwargs):
+#     data = await state.get_data() 
+#     license_id= data[0]
+#     if message.document is None:
+#         await state.clear()
+#         return
+#     license_file = message.document.file_id
+    
+#     await state.clear()
+#     await LicensesDatabase.set_value(license_id,"license_file",license_file)
+#     await message.answer(text=f'Updated!',reply_markup =user_keyboards.get_hide_file_kb())
 
 
 #Cart
@@ -894,3 +981,6 @@ async def setDefaultPaymentMethod_clb_handler(clb: CallbackQuery,is_clb=True, **
     await UsersDatabase.set_value(user_id,"default_payment_method",method)
     await choosePaymentMethod_clb_handler(clb)
 
+@router.message(F.text)
+async def anytext_handler(message:Message,**kwargs):
+    await start_handler(message,is_clb=True)

@@ -76,7 +76,7 @@ def get_licenses_kb(licenses)-> InlineKeyboardMarkup:
     
     buttons = []
     for license in licenses: 
-        is_archived,feature, is_active = license[9], license[5], license[11]
+        is_archived,feature, is_active = license[10], license[5], license[12]
         meta_preview = ''
         if is_archived == 1:
             meta_preview += '🗃'
@@ -96,9 +96,9 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 def get_mylicense_kb(license) -> InlineKeyboardMarkup:
     license_id = license[0]
-    is_archived, feature, is_active, price, file_id, license_type = license[9], license[5], license[11], license[4], license[8], license[6]
+    is_archived, feature, is_active, price, file_id, license_type = license[10], license[5], license[12], license[4], license[9], license[6]
 
-    name_btn = InlineKeyboardButton(text="Edit name", callback_data=f"licenseedit_name_{license_id}")
+    name_btn = InlineKeyboardButton(text="Name", callback_data=f"licenseedit_name_{license_id}")
     desc_btn = InlineKeyboardButton(text="Description", callback_data=f"licenseedit_desc_{license_id}")
 
     license_texts = {
@@ -111,8 +111,8 @@ def get_mylicense_kb(license) -> InlineKeyboardMarkup:
 
     active_text = "Activate" if is_active != 1 else "💤 Deactivate"
     active_btn = InlineKeyboardButton(text=active_text, callback_data=f"licenseedit_active_{license_id}_{1 if is_active != 1 else 0}")
-
-    price_text = "Edit price" if price is None else str(price)
+    price = int(price) if price.is_integer() else price
+    price_text = "Edit price" if price is None else '$'+str(price)
     price_btn = InlineKeyboardButton(text=price_text, callback_data=f"licenseedit_price_{license_id}")
 
     feature_text = "Set as featured⭐️" if feature != 1 else "Unset as featured"
