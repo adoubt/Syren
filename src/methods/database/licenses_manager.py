@@ -2,12 +2,12 @@
 import aiosqlite,aiofiles
 from typing import Any,Optional
 
-
+DB_PATH = "src/databases/licenses.db"
 class LicensesDatabase:
 
     @classmethod
     async def create_table(self):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             async with db.execute('''CREATE TABLE IF NOT EXISTS licenses(
                                     license_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                                     user_id INTEGER,
@@ -27,7 +27,7 @@ class LicensesDatabase:
 
     @classmethod
     async def get_value(cls, key: Any, license_id:int):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             async with db.execute(f'SELECT {key} FROM licenses WHERE license_id = {license_id}') as cursor:
                 result = await cursor.fetchone()
                 if not result:
@@ -41,7 +41,7 @@ class LicensesDatabase:
         license_type: int | None = 5, 
         active_only: int | None = 1
     ) -> list:
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             query = 'SELECT * FROM licenses WHERE user_id = ? AND license_type <= ?'
             params = [user_id, license_type]
 
@@ -56,7 +56,7 @@ class LicensesDatabase:
     
     @classmethod
     async def get_license(cls, license_id: int):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             async with db.execute('SELECT * FROM licenses WHERE license_id = ?', (license_id,)) as cursor:
                 result = await cursor.fetchone()
                 if result is None:  # Проверяем, если результата нет
@@ -66,7 +66,7 @@ class LicensesDatabase:
             
     @classmethod    
     async def get_feature_by_user(cls, user_id:int):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             async with db.execute(f'SELECT price FROM licenses WHERE user_id = {user_id} AND feature = 1') as cursor:
                 result = await cursor.fetchone()
                 if not result:
@@ -75,7 +75,7 @@ class LicensesDatabase:
             
     @classmethod
     async def get_all(cls):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             async with db.execute(f'SELECT * FROM licenses') as cursor:
                 result = await cursor.fetchall()
                 if not result:
@@ -84,7 +84,7 @@ class LicensesDatabase:
 
     # @classmethod
     # async def get_product(cls, product_id: int):
-    #     async with aiosqlite.connect("src/databases/licenses.db") as db:
+    #     async with aiosqlite.connect(DB_PATH) as db:
     #         async with db.execute(f'SELECT * FROM licenses WHERE product_id = {product_id}') as cursor:
     #             result = await cursor.fetchone()
     #             if not result:
@@ -94,7 +94,7 @@ class LicensesDatabase:
 
     @classmethod
     async def set_value(cls, license_id: int, key: Any, new_value: Any):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             if type(key) is int:
                 await db.execute(f'UPDATE licenses SET {key}={new_value} WHERE license_id={license_id}')
             else:
@@ -115,7 +115,7 @@ class LicensesDatabase:
                             is_offer_only:int| None = 0,
                             is_active:int| None = 0,
                             ):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             await db.execute(f'INSERT INTO licenses ("user_id", "name", "description", "price", "feature","license_type", "min_offer_price","license_file","is_archived","is_offer_only","is_active") VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                              (user_id,name,description,price,feature,license_type,min_offer_price,license_file,is_archived,is_offer_only,is_active))
             await db.commit()
@@ -123,19 +123,19 @@ class LicensesDatabase:
 
     @classmethod
     async def del_license(cls,license_id):        
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             await db.execute(f'DELETE FROM licenses WHERE license_id = {license_id}')
             await db.commit()
     
     @classmethod
     async def del_all_by_user(cls,user_id):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             await db.execute(f'DELETE FROM licenses WHERE user_id = {user_id}')
             await db.commit()
     
     @classmethod
     async def toggle_license_active(cls, license_id: int):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             # Получаем данные лицензии по license_id
             license_row = await cls.get_license(license_id)
 
@@ -154,7 +154,7 @@ class LicensesDatabase:
             
     @classmethod
     async def set_featured_license(cls, user_id: int, license_id: int):
-        async with aiosqlite.connect("src/databases/licenses.db") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             # Сначала снимем статус избранной лицензии с других лицензий
             await db.execute(
                 'UPDATE licenses SET feature = 0 WHERE user_id = ? AND feature = 1',
@@ -187,8 +187,8 @@ class LicensesProductsDatabase:
 
     @classmethod
     async def create_table(self):
-        async with aiosqlite.connect("src/databases/licenses") as db:
-            async with db.execute('''CREATE TABLE IF NOT EXISTS licenses_products(
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute('''CREATE TABLE IF NOT EXISTS products(
                                     product_id INTEGER,
                                     license_id INTEGER,
                                     disabled INTEGER,
@@ -199,11 +199,11 @@ class LicensesProductsDatabase:
     
     @classmethod
     async def set_value(cls, id: int, key: Any, new_value: Any):
-        async with aiosqlite.connect("src/databases/licenses") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             if type(key) is int:
-                await db.execute(f'UPDATE licenses_products SET {key}={new_value} WHERE id={id}')
+                await db.execute(f'UPDATE products SET {key}={new_value} WHERE id={id}')
             else:
-                await db.execute(f'UPDATE licenses_products SET {key}=? WHERE id={id}',(new_value,))
+                await db.execute(f'UPDATE products SET {key}=? WHERE id={id}',(new_value,))
             await db.commit()
 
     @classmethod
@@ -213,29 +213,29 @@ class LicensesProductsDatabase:
                         disabled:int |None = 1,
                         custom_price: float | None = None,
                        ):
-        async with aiosqlite.connect("src/databases/licenses") as db:
-            await db.execute(f'INSERT INTO licenses_products ("product_id", "license_id", "disabled","custom_price") VALUES (?,?,?,?)',
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(f'INSERT INTO products ("product_id", "license_id", "disabled","custom_price") VALUES (?,?,?,?)',
                              (product_id,license_id,disabled, custom_price))
             await db.commit()
     @classmethod
     async def get_disabled(cls, product_id:int):
-        async with aiosqlite.connect("src/databases/licenses") as db:
-            async with db.execute(f'SELECT license_id FROM licenses_products WHERE product_id = {product_id} AND disabled = 1') as cursor:
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute(f'SELECT license_id FROM products WHERE product_id = {product_id} AND disabled = 1') as cursor:
                 result = await cursor.fetchall()
                 if not result:
                     return []
                 return result
     @classmethod
     async def del_row(cls,license_id:int,product_id:int):        
-        async with aiosqlite.connect("src/databases/licenses") as db:
-            await db.execute(f'DELETE FROM licenses_products WHERE license_id = {license_id} AND product_id = {product_id}')
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(f'DELETE FROM products WHERE license_id = {license_id} AND product_id = {product_id}')
             await db.commit()
    
 class LicenseTemplates:
 
     @classmethod
     async def create_table(self):
-        async with aiosqlite.connect("src/databases/licenses") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             async with db.execute('''CREATE TABLE IF NOT EXISTS templates (
     template_id INTEGER PRIMARY KEY AUTOINCREMENT,  -- Уникальный идентификатор шаблона
     license_id INTEGER DEFAULT NULL,       -- ID лицензии (NULL для дефолтного шаблона)
@@ -246,14 +246,14 @@ class LicenseTemplates:
                 pass
     
     @classmethod
-    async def upsert_template(cls, license_id: Optional[int], markdown: str) -> None:
+    async def upsert_template(cls, markdown: str,license_id: Optional[int] = None,) -> None:
         """
         Вставка или обновление шаблона.
         Если markdown совпадает с дефолтным, связываем license_id с дефолтным шаблоном.
         :param license_id: ID лицензии (None для дефолтного шаблона)
         :param markdown: Текст шаблона в формате Markdown
         """
-        async with aiosqlite.connect("src/databases/licenses") as db:
+        async with aiosqlite.connect(DB_PATH) as db:
             # Попытка вставить дефолтный шаблон
             insert_default_query = '''
             INSERT OR IGNORE INTO templates (markdown)
@@ -289,11 +289,11 @@ class LicenseTemplates:
     async def initialize_default_markdown(cls):
         async with aiofiles.open("src/default_markdown.md", mode="r", encoding="utf-8") as f:
                 default_markdown = await f.read()
-                await cls.upsert_template(default_markdown)
+                await cls.upsert_template(markdown=default_markdown)
     
     @classmethod
     async def get_markdown(cls,license_id) -> str:         
-           async with aiosqlite.connect("src/databases/licenses") as db:
+           async with aiosqlite.connect(DB_PATH) as db:
                 cursor = await db.execute('SELECT markdown FROM templates WHERE license_id IS NULL LIMIT 1')
                 row = await cursor.fetchone()
                 return row[0] if row else '' 

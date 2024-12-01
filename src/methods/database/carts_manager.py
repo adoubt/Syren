@@ -83,7 +83,7 @@ class Database:
                              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
                              cart_id INTEGER NOT NULL, 
                              coupon_id iNTEGER ,
-                             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                              UNIQUE(cart_id,coupon_id)
                              FOREIGN KEY (cart_id) REFERENCES carts(cart_id) ) ''') 
 

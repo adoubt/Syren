@@ -17,7 +17,7 @@ async def init_databases() -> None:
     order_service = OrdersService()
     await order_service.create_table()
     coupon_service = CouponService()
-    await coupon_service._initialize_db
+    await coupon_service._initialize_db()
     await ProductsDatabase.create_table()
     await UsersDatabase.create_table()
     await WishlistsDatabase.create_table()

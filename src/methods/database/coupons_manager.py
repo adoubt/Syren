@@ -58,7 +58,7 @@ class Database:
     async def create_tables(self): 
         """Создать таблицы, если они не существуют.""" 
         async with self.get_db_connection() as db: 
-            await db.execute(''' CREATE TABLE coupon_codes (
+            await db.execute(''' CREATE TABLE IF NOT EXISTS coupon_codes (
     coupon_id INTEGER PRIMARY KEY AUTOINCREMENT,       
     code TEXT NOT NULL CHECK (LENGTH(code) BETWEEN 1 AND 15 AND code NOT LIKE '% %'),
     seller_id INTEGER NOT NULL,                 
