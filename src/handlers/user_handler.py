@@ -34,6 +34,7 @@ from pytonconnect import TonConnect
 
 from src.methods.payment.TON.messages import get_comment_message
 from src.methods.payment.TON.connector import get_connector
+from src.methods.utils import get_file_id,parse_callback_data
 
 @router.message(Command("start"))
 @new_user_handler
@@ -58,14 +59,15 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
             # license_type=5
             # stems_link = product[7]
             # wav_link = product[6]
-            mp3_link = product[5] 
+            preview_link = product[4] if product[4] !='' else product[5]
+
             # if stems_link =='':
             #     license_type=2
             # if wav_link !='':
             #     license_type=1
             # if mp3_link !='':
             #     license_type=0
-            
+           
             image_link = product[8]
             is_sold = product[9]
             collab = product[11]
@@ -75,10 +77,10 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
             if price == -1:
                 price = await LicensesDatabase.get_min_price_by_user(seller)
             channel = await UsersDatabase.get_value(seller,"channel")
-            if mp3_link == -1:
+            if preview_link == -1:
                 await message.answer("404..")
             else:
-                already_in_wishlist = True if await WishlistsDatabase.get_value('product_id',user_id) == int(product_id) else False
+                already_in_wishlist =  await WishlistsDatabase.is_product_in_wishlist(user_id,product_id)
                 already_in_cart = True if await shopping_cart_service.check_item_in_cart(user_id,product_id) else False
                 ikb = user_keyboards.get_showcase_kb(product_id=product_id,
                                                     price=price,
@@ -92,8 +94,9 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
                     await message.edit_caption( reply_markup=ikb, caption = '')
                 else:
                     
-                    await message.answer_audio(audio=mp3_link, reply_markup=ikb , caption = '')
-    except: 
+                    await message.answer_audio(audio=preview_link, reply_markup=ikb , caption = '')
+    except Exception as e:
+        print(e) 
         await message.answer('Wassap?', reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count,cart_count) )            
    
     # if start_photo =="":
@@ -146,8 +149,9 @@ async def wishlist_handler(message: Message, is_clb=False,current_page:int|None 
             await message.answer(text = "Please open Wishlist again")
             return
         #Лишний раз лезу в бд
-        mp3_link = product[5]
-        await message.answer_audio(audio=mp3_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
+        
+        preview_link = product[4] if product[4] !='' else product[5]
+        await message.answer_audio(audio=preview_link, reply_markup=user_keyboards.get_item_in_wishlist_kb(user_id,product_id))
 
 @router.callback_query(lambda clb: clb.data == 'wishlist')
 @new_user_handler
@@ -193,10 +197,13 @@ async def generate_cart_handler(message: Message, is_clb=False,current_page:int|
     keyboard = user_keyboards.get_generated_cart_kb(enriched_cart, user_id, total_amount,payment_method=default_payment_method)
     
     # Отправляем сообщение с корзиной и клавиатурой
-    if not is_clb:
-        await message.answer("Your cart:", reply_markup=keyboard)
-    else:
+    if message.text and message.from_user.is_bot:
         await message.edit_text(text="Your cart:", reply_markup=keyboard)
+    else:
+        await message.answer("Your cart:", reply_markup=keyboard)
+        await message.delete()
+        
+
 
 @router.callback_query(lambda clb: clb.data == 'cart')
 @new_user_handler
@@ -272,18 +279,22 @@ async def settings_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     data = clb.data.split('_',1)
     product_id = data[1]
-    await start_handler(clb.message, is_clb=True,product_id = product_id)
     await clb.answer()
+    await start_handler(clb.message, is_clb=True,product_id = product_id)
+    
 
-@router.callback_query(lambda clb: clb.data.startswith("chooseLicense_"))
+@router.callback_query(lambda clb: clb.data.startswith("chooseLicense:"))
 async def chooseLicense_clb_handler(clb: CallbackQuery, is_clb=True, data:str|None = None, **kwargs):
+    
     user_id = clb.from_user.id
-    if is_clb:
-        data = clb.data.split('_',1)
-    else:
-        data = clb.data.split('_',4)
-        in_cart = int(data[2])#тут лежит лицуха из корзины логика такая если id совпадет то будет другая кнопка
-    product_id = int(data[1])
+    parsed_data = parse_callback_data(clb.data)
+    
+    selected_license = int(parsed_data.get('selected_license')) if parsed_data.get('selected_license') else None
+    
+    product_id = int(parsed_data.get('product_id')) if parsed_data.get('product_id') else None
+    in_cart = int(parsed_data.get('in_cart')) if parsed_data.get('in_cart') else None
+
+
     cartItem = await shopping_cart_service.check_item_in_cart(user_id=user_id,product_id=product_id)
     in_cart = cartItem[0][4] if cartItem else None
     
@@ -300,8 +311,22 @@ async def chooseLicense_clb_handler(clb: CallbackQuery, is_clb=True, data:str|No
     if mp3_link =='':
         license_type=0
     licenses = await LicensesDatabase.get_licenses_by_user(seller, license_type)
+
     disabled = await LicensesProductsDatabase.get_disabled(product_id)
-    await clb.message.edit_caption(caption = 'Choose license', reply_markup = user_keyboards.get_choose_licenses_kb(user_id,product_id,licenses,disabled,in_cart))
+    feature = next((license[0] for license in licenses if license[5] == 1), None)
+    caption = 'Choose license:'
+    if not selected_license and in_cart:
+        selected_license = in_cart
+    elif not selected_license and not in_cart:
+        selected_license = feature if feature else None
+    for license in licenses: 
+        if license[0] == selected_license:
+            price = license[4]
+            price = int(price) if price.is_integer() else price
+            caption = f"<b>Choose license:</b>\n\n<b>{license[2]}</b>\n<b>Include: </b>{license[3]}\nTotal: <b>${price}</b>"
+    
+   
+    await clb.message.edit_caption(caption = caption, parse_mode='HTML',reply_markup = user_keyboards.get_choose_licenses_kb(user_id,product_id,licenses,selected_license,disabled,feature,in_cart))
 
 
 @router.callback_query(lambda clb: clb.data.startswith("addTowishlist"))
@@ -374,13 +399,15 @@ async def licenses_clb_handler(clb: CallbackQuery, product_id:int|None = None, i
 async def files_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     data = clb.data.split('_',1)
     product_id = int(data[1])
-    await clb.message.edit_text(text='Files:\n(tap to show)',reply_markup = user_keyboards.get_files_kb(product_id))   
+    product = await ProductsDatabase.get_product(product_id)
+    preview_link,mp3_link,wav_link,stems_link = product[4],product[5],product[6],product[7]
+    await clb.message.edit_text(text='Files:\n(tap to show)',reply_markup = user_keyboards.get_files_kb(product_id,preview_link,mp3_link,wav_link,stems_link))   
 
 @router.callback_query(lambda clb: clb.data.startswith('showfile_'))
 @new_user_handler
 async def showfile_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     data = clb.data.split('_',2)
-    product_id = int(data[1])
+    product_id = int(data[2])
     product = await ProductsDatabase.get_product(product_id)
     preview_link,mp3_link,wav_link,stems_link = product[4],product[5],product[6],product[7]
     if data[1] == 'mp3':
@@ -391,45 +418,63 @@ async def showfile_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
         await clb.message.answer_document(document = stems_link,reply_markup =user_keyboards.get_hide_file_kb())
     elif data[1] == 'preview':
         await clb.message.answer_audio(audio = preview_link,reply_markup =user_keyboards.get_hide_file_kb())  
+    await clb.answer()
+
+
+
+@router.callback_query(lambda clb: clb.data.startswith('deletefile_'))
+@new_user_handler
+async def deletefile_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    data = clb.data.split('_',2)
+    product_id = int(data[2])
+    file_type = data[1]
+    await ProductsDatabase.set_value(product_id,f'{file_type}_link','')
+    product = await ProductsDatabase.get_product(product_id)
+    preview_link,mp3_link,wav_link,stems_link = product[4],product[5],product[6],product[7]
+    await clb.message.edit_text(text='Files:\n(tap to show)',reply_markup = user_keyboards.get_files_kb(product_id,preview_link,mp3_link,wav_link,stems_link))
 
 class EditFile(StatesGroup):
     file_ask = State()
 
 @router.callback_query(lambda clb: clb.data.startswith('editfile_'))
 @new_user_handler
-async def showfile_clb_handler(clb: CallbackQuery, state = FSMContext, is_clb=False, **kwargs):
+async def editfile_clb_handler(clb: CallbackQuery, state = FSMContext, is_clb=False, **kwargs):
     data = clb.data.split('_',2)
-    product_id = int(data[1])
+    product_id = int(data[2])
     await state.set_data([product_id,data[1]])
-    if data[1] == 'mp3':
+    file_type = data[1]
+    if file_type == 'mp3':
         text = 'Upload or forward .MP3'
-    elif data[1] == 'wav':
+    elif file_type == 'wav':
         text = 'Upload or forward .WAV'
-    elif data[1] == 'stems':
+    elif file_type == 'stems':
         text = 'Upload or forward .ZIP (or other archive)'
-    elif data[1] == 'preview':
-        text = 'Upload or forward .MP3'
+    elif file_type == 'preview':
+        text = 'Upload or forward preview .MP3 '
     await state.set_state(EditFile.file_ask)
-    await clb.message.edit_text(text=text,reply_markup =user_keyboards.get_edit_file_back_kb(product_id))
+    
+    await clb.message.edit_text(text=text,reply_markup =user_keyboards.get_edit_file_kb(product_id,file_type))
+
+
 
 @router.message(EditFile.file_ask)
 async def file_ask_callback_handler(message: types.Message, state: FSMContext, **kwargs):
-    data = await state.get_data() 
-    product_id= data[0]
-    if message.audio is None or message.document is None:
+    data = await state.get_data()
+    product_id = data[0]
+    file_type = data[1]
+
+    link = get_file_id(message, file_type)
+
+    if link:
+        await ProductsDatabase.set_value(product_id, f'{file_type}_link', link)
+        text = f'Updated!\nFiles:'
+        
+    else:
         await state.clear()
-        return
-    if data[1] == 'mp3':
-        link = message.audio.file_id
-    elif data[1] == 'wav':
-        link = message.document.file_id
-    elif data[1] == 'stems':
-        link = message.document.file_id
-    elif data[1] == 'preview':
-        link = message.audio.file_id
-    await state.clear()
-    await ProductsDatabase.set_value(product_id,f'{data[1]}_link',link )
-    await message.answer(text=f'Updated!\nFiles:',reply_markup = user_keyboards.get_files_kb(product_id))
+        text = f'Error: Unexpected file format, not {file_type}\nFiles:'
+    product = await ProductsDatabase.get_product(product_id)
+    preview_link,mp3_link,wav_link,stems_link = product[4],product[5],product[6],product[7]
+    await message.answer(text=text, reply_markup = user_keyboards.get_files_kb(product_id,preview_link,mp3_link,wav_link,stems_link)) 
 
 
 @router.callback_query(lambda clb: clb.data == 'hide_file')
@@ -771,11 +816,11 @@ async def handle_license_edit(message: types.Message, state: FSMContext, **kwarg
 @router.callback_query(lambda clb: clb.data.startswith('addToCart'))
 async def addToCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
     user_id = clb.message.chat.id
-    data = clb.data.split('_',3)
-    product_id = int(data[1])
-    license_id = int(data[2])
+    parsed_data = parse_callback_data(clb.data)
+    product_id = int(parsed_data.get('product_id')) if parsed_data.get('product_id') else None
+    license_id = int(parsed_data.get('license_id')) if parsed_data.get('license_id') else None
     await shopping_cart_service.add_item(user_id,product_id,license_id)
-    await chooseLicense_clb_handler(clb,is_clb=False,data = f'chooseLicense_{product_id}_{license_id}')
+    await chooseLicense_clb_handler(clb,is_clb=False,data = f'chooseLicense:product_id={product_id}&license_id={license_id}')
 
 @router.callback_query(lambda clb: clb.data.startswith('delFromCart'))
 async def delFromCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
@@ -784,7 +829,7 @@ async def delFromCart_clb_handler(clb: CallbackQuery,is_clb=True, **kwargs):
     product_id = int(data[1])
     await shopping_cart_service.remove_item(user_id,product_id)
     if data[4] =='license':
-        await chooseLicense_clb_handler(clb,is_clb=False,data = f'chooseLicense_{product_id}_0')
+        await chooseLicense_clb_handler(clb,is_clb=False,data = f'chooseLicense:product_id={product_id}&license_id')
     else:
         await generate_cart_handler(clb.message,is_clb=True)
 
@@ -984,3 +1029,8 @@ async def setDefaultPaymentMethod_clb_handler(clb: CallbackQuery,is_clb=True, **
 @router.message(F.text)
 async def anytext_handler(message:Message,**kwargs):
     await start_handler(message,is_clb=True)
+
+
+@router.callback_query(F.data == "emptycallback")
+async def emptycallback(clb: CallbackQuery, **kwargs):
+   await clb.answer()
