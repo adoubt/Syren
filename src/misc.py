@@ -13,10 +13,11 @@ SUPER_ADMIN = os.getenv('SUPER_ADMIN')
 PASSWORD = os.getenv('PASSWORD') # /set_admin{PASSWORD}
 SERVICE_FEE = float(os.getenv('SERVICE_FEE'))
 
+
 bot_id = BOT_TOKEN.split(":",1)[0]
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
-
+LINK = 'https://t.me/OctarynBot?start='
 
 #AAIO   
 AAIO_TOKEN = os.getenv('AAIO_TOKEN')
