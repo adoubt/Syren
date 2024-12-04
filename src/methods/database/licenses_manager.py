@@ -21,7 +21,8 @@ class LicensesDatabase:
                                     license_file_id TEXT DEFAULT NULL,
                                     is_archived INTEGER,
                                     is_offer_only INTEGER,
-                                    is_active INTEGER
+                                    is_active INTEGER,
+                                    is_exclusive INTEGER
                                     )'''
                                   ) as cursor:
                 pass
@@ -39,7 +40,7 @@ class LicensesDatabase:
     async def get_licenses_by_user(
         cls, 
         user_id: int, 
-        license_type: int | None = 5, 
+        license_type: int | None = 3, 
         active_only: int | None = 1
     ) -> list:
         async with aiosqlite.connect(DB_PATH) as db:
@@ -125,18 +126,19 @@ class LicensesDatabase:
                             user_id: int,
                             name: str| None = 'New License',
                             description: str| None = '',
-                            price: float | None = None,
+                            price: float | None = 1,
                             feature: int| None = 0,
-                            license_type:int|None = 0,
+                            license_type:int|None = 1,
                             min_offer_price: float| None = None,
                             template_id: str | None = None,
                             is_archived:int| None = 0,
                             is_offer_only:int| None = 0,
                             is_active:int| None = 0,
+                            is_exclusive:int| None = 0
                             ):
         async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(f'INSERT INTO licenses ("user_id", "name", "description", "price", "feature","license_type", "min_offer_price","template_id","is_archived","is_offer_only","is_active") VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                             (user_id,name,description,price,feature,license_type,min_offer_price,template_id,is_archived,is_offer_only,is_active))
+            await db.execute(f'INSERT INTO licenses ("user_id", "name", "description", "price", "feature","license_type", "min_offer_price","template_id","is_archived","is_offer_only","is_active","is_exclusive") VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                             (user_id,name,description,price,feature,license_type,min_offer_price,template_id,is_archived,is_offer_only,is_active,is_exclusive))
             await db.commit()
     
 
@@ -161,7 +163,7 @@ class LicensesDatabase:
             # Проверяем все элементы кроме тех которые могут быть None (оффер под будущее)
             check_elements = license_row[:6] + license_row[10:]
 
-            if all(value is not None for value in check_elements):  # Пропускаем None поля
+            if all(value is not None for value in check_elements) and license_row[6]!=0:  # Пропускаем None поля
                 current_active_status = license_row[12] 
                 new_active_status = 0 if current_active_status == 1 else 1
                 
@@ -170,7 +172,20 @@ class LicensesDatabase:
                 return new_active_status  # Возвращаем новое состояние is_active
             else:
                 return -1
+    @classmethod
+    async def toggle_license_type(cls,license_id:int):
+        async with aiosqlite.connect(DB_PATH) as db:
+            license_type = await cls.get_value('license_type',license_id)
+            license_mapping = {1: 2, 2: 3, 3: 1}
+            new_value = license_mapping.get(license_type)
+            if new_value:
+                await cls.set_value(license_id, 'license_type', new_value)
+                return new_value
+
+            raise ValueError(f"Invalid license type: {license_type}")
             
+
+
     @classmethod
     async def set_featured_license(cls, user_id: int, license_id: int):
         async with aiosqlite.connect(DB_PATH) as db:
@@ -195,11 +210,11 @@ class LicensesDatabase:
     async def set_default(cls, user_id:int):
         await cls.create_table()
         await cls.del_all_by_user(user_id=user_id)
-        await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=20,feature=1,license_type=1,template_id=None,is_active=1,)
-        await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=30,feature=0,license_type=2,template_id=None,is_active=1,)
-        await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=60,feature=0,license_type=3,template_id=None,is_active=1,)
-        await cls.create_license(user_id=user_id,name="Unlimited",description='MP3 + WAV + STEMS',price=100,feature=0,license_type=4,template_id=None,is_active=1,)
-        await cls.create_license(user_id=user_id,name="Exclusive",description='MP3 + WAV + STEMS',price=250,feature=0,license_type=5,template_id=None,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Mp3 Lease",description='MP3',price=20,feature=1,license_type=1,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Wav Lease",description='MP3 + WAV',price=30,feature=0,license_type=2,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Stems Lease",description='MP3 + WAV + STEMS',price=60,feature=0,license_type=3,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Unlimited",description='MP3 + WAV + STEMS',price=100,feature=0,license_type=3,is_active=1,)
+        await cls.create_license(user_id=user_id,name="Exclusive",description='MP3 + WAV + STEMS',price=250,feature=0,license_type=3,is_active=1,is_exclusive=1)
 
 
 class LicensesProductsDatabase:
