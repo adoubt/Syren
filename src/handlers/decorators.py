@@ -21,9 +21,11 @@ def new_user_handler(function):
     async def _new_user_handler(*args, **kwargs):
         message: Message = args[0]
         user_id = message.from_user.id
-        await UsersDatabase.create_table()
+        username =message.from_user.username
+        language = message.from_user.language_code
+        # username = message.
         if (await UsersDatabase.get_user(user_id)) == -1:
-            await UsersDatabase.create_user(user_id)
+            await UsersDatabase.create_user(user_id=user_id,username = username,language = language)
             
             logger.success(f"Новый пользователь (ID: {user_id})")
             if user_id == int(bot_id):

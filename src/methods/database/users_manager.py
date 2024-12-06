@@ -8,19 +8,19 @@ class UsersDatabase:
         async with aiosqlite.connect("src/databases/users.db") as db:
             async with db.execute(
                     f'''CREATE TABLE IF NOT EXISTS users(user_id INTEGER PRIMARY KEY,
-                                                        is_seller INTEGER,
-                                                        is_banned INTEGER,
-                                                        is_admin INTEGER,
-                                                        balance REAL,
-                                                        username STRING,
-                                                        artist_name STRING,
-                                                        email STRING,
-                                                        insta STRING,
-                                                        subscription INTEGER,
-                                                        wallet INTEGER,
-                                                        language STRING,
-                                                        channel STRING,
-                                                        default_payment_method STRING,
+                                                        is_seller INTEGER DEFAULT 0,
+                                                        is_banned INTEGER DEFAULT 0,
+                                                        is_admin INTEGER DEFAULT 0,
+                                                        balance REAL DEFAULT 0.00,
+                                                        username TEXT DEFAULT NULL,
+                                                        artist_name STRING DEFAULT NULL,
+                                                        email TEXT DEFAULT NULL,
+                                                        insta TEXT DEFAULT NULL,
+                                                        subscription INTEGER DEFAULT NULL,
+                                                        wallet_id INTEGER DEFAULT NULL,
+                                                        language STRING DEFAULT 'en',
+                                                        channel TEXT DEFAULT NULL,
+                                                        default_payment_method STRING 'CryptoPay',
                                                         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''') as cursor:
                 pass
 
@@ -59,14 +59,14 @@ class UsersDatabase:
         is_banned: int = 0,
         is_admin: int = 0,
         balance: float = 0.0,
-        username: str = "durov",
-        artist_name: str = "Travis Scott",
-        email: str = "ab@somegoogle.com",
-        insta: str = "",
+        username: str= None,
+        artist_name:str = None,
+        email: str = None,
+        insta: str = None,
         subscription: int = 0,
-        wallet: int = 0,
-        language: str = "ENG",
-        channel: str = "https://t.me/prodmeta",
+        wallet_id: int = None,
+        language: str = "en",
+        channel: str = None,
         default_payment_method: str = "CryptoBot"
     ):
         async with aiosqlite.connect("src/databases/users.db") as db:
@@ -74,7 +74,7 @@ class UsersDatabase:
             INSERT INTO users(
                 "user_id", "is_seller", "is_banned", "is_admin", "balance",
                 "username", "artist_name", "email", "insta", "subscription",
-                "wallet", "language", "channel","default_payment_method"
+                "wallet_id", "language", "channel","default_payment_method"
             ) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
@@ -82,7 +82,7 @@ class UsersDatabase:
                 query,
                 (user_id, is_seller, is_banned, is_admin, balance,
                 username, artist_name, email, insta, subscription,
-                wallet, language, channel, default_payment_method)
+                wallet_id, language, channel, default_payment_method)
             )
             await db.commit()
 
