@@ -9,7 +9,7 @@ from src.misc import bot, dp, cp
 
 def register_handlers():
     dp.include_routers(user_handler.router)
-    dp.include_routers(cryptopay_handler.router)  # Регистрация CryptoPay обработчиков
+    # dp.include_routers(cryptopay_handler.router)  # Регистрация CryptoPay обработчиков
 
 # Платежный поток (можно временно отключить)
 async def payment_polling():
@@ -25,11 +25,13 @@ async def main():
     await on_startup()  # Вызов инициализации баз данных
     register_handlers() # Регистрация обработчиков
     # aaio_polling_task = asyncio.create_task(payment_polling())  # Отключено, если не нужно
-    
+    app = await cp.get_me()
+    print(app.name)
     # Запускаем все задачи параллельно
     await asyncio.gather(
         dp.start_polling(bot),  # Telegram-бот
-        cp.run_polling(),       # CryptoPay
+        
+        cp.start_polling(),       # CryptoPay
         # aaio_polling_task      # Закомментировано для исключения третьего потока
     )
 
