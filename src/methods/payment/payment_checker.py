@@ -1,6 +1,6 @@
 from methods.database.orders_manager import OrdersDatabase
 from src.methods.payment import aaio_manager
-from src.methods.payment.payment_processing import ProcessOrder
+from methods.payment.process import ProcessOrder
 import asyncio
 
 async def run_order_status_checker():

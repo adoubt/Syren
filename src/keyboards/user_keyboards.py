@@ -54,7 +54,7 @@ def get_generated_cart_kb(cart_items, user_id, total_amount,payment_method) -> I
     ikb += [
         #[InlineKeyboardButton(text="🗑️ Remove All", callback_data=f"clear_cart_{user_id}")],
         [InlineKeyboardButton(text=f"Method: {payment_method}", callback_data="choosePaymentMethod")],
-        [InlineKeyboardButton(text=f"💳 Checkout ${total_amount}", callback_data="checkout")]
+        [InlineKeyboardButton(text=f"💳 Checkout ${total_amount}", callback_data=f"checkout")]
     ]
 
     return InlineKeyboardMarkup(inline_keyboard=ikb)
@@ -70,11 +70,16 @@ def get_payment_methods_kb(default_payment_method:str,payment_methods: list):
         [InlineKeyboardButton(text=f"‹ Back", callback_data="cart")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=ikb)
-
+def get_order_summary_kb(amount)-> InlineKeyboardMarkup:
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f'Pay {amount}', pay=True)],
+        [InlineKeyboardButton(text="cancel",callback_data="paystarscancel")]
+        ]) 
+    return ikb
 
 def get_paystars_kb(amount)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f'Pay {amount}🔹', pay=True)],
+        [InlineKeyboardButton(text=f'Pay {amount}⭐️', pay=True)],
         [InlineKeyboardButton(text="cancel",callback_data="paystarscancel")]
         ]) 
     return ikb
@@ -162,39 +167,36 @@ def get_mylicense_kb(license) -> InlineKeyboardMarkup:
 
 
 def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlist:int,already_in_cart:int,user_id: int,price:float| None = None) -> InlineKeyboardMarkup:
+    buttons = []
     if already_in_cart ==1:
         cart_btn = [InlineKeyboardButton(text=f'In 🛒 Cart', callback_data=f'chooseLicense:product_id={product_id}')]
+        
     else:
         cart_btn = [InlineKeyboardButton(text=f'${price}', callback_data=f'chooseLicense:product_id={product_id}')]
+    if not is_sold or not price:
+        buttons.append(cart_btn)    
     if already_in_wishlist ==1:
         wishlist_btn = [InlineKeyboardButton(text=f'In 🤍 Wishlist', callback_data=f'delFromWishlist_{user_id}_{product_id}_refresh')]
     else:
         wishlist_btn = [InlineKeyboardButton(text=f'🤍', callback_data=f'addTowishlist_{product_id}')]
-
-
-    channel_btn = [InlineKeyboardButton(text=f'Channel', url=channel)]
-
-    if is_sold == 1 or not price:
-        ikb = InlineKeyboardMarkup(inline_keyboard=[
-        wishlist_btn,
-        channel_btn,
-        ]) 
+    buttons.append(wishlist_btn)
+    if channel: 
+        channel_btn = [InlineKeyboardButton(text=f'Channel', url=channel)]
+        buttons.append(channel_btn)
+    # if is_sold == 1 or not price:
+    #     ikb = InlineKeyboardMarkup(inline_keyboard=[
+    #     wishlist_btn,
+    #     channel_btn,
+    #     ]) 
         
-    else:
-        ikb = InlineKeyboardMarkup(inline_keyboard=[
-        cart_btn,
-        wishlist_btn,
-        channel_btn,
-    ]) 
+    # else:
+    #     ikb = InlineKeyboardMarkup(inline_keyboard=[
+    #     cart_btn,
+    #     wishlist_btn,
+    #     channel_btn,
+    # ]) 
+    ikb = InlineKeyboardMarkup(inline_keyboard=buttons)
     return ikb
-
-# def get_payment_method_kb()-> InlineKeyboardMarkup:
-#     ikb = InlineKeyboardMarkup(inline_keyboard=[
-#         [InlineKeyboardButton(text='', callback_data='')],
-#         [InlineKeyboardButton(text='', callback_data='')],
-#         [InlineKeyboardButton(text='', callback_data='')]
-#     ]) 
-#     return ikb
 
 def get_homepage_kb(user_id, cart)-> InlineKeyboardMarkup:
     cart_view = 'Cart'
@@ -284,21 +286,6 @@ def get_delbeat_kb(product_id)-> InlineKeyboardMarkup:
         InlineKeyboardButton(text="‹ Back", callback_data=f'beat_{product_id}')],
     ]) 
     return ikb
-
-# def get_files_kb(product_id,preview_link,mp3_link,wav_link,stems_link)-> InlineKeyboardMarkup:
-#     ikb = InlineKeyboardMarkup(inline_keyboard=[
-#         [InlineKeyboardButton(text=f"Mp3", callback_data=f'showfile_mp3_{product_id}'),
-#          InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_mp3_{product_id}')],
-#         [InlineKeyboardButton(text=f"Wav", callback_data=f'showfile_wav_{product_id}'),
-#          InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_wav_{product_id}')],
-#         [InlineKeyboardButton(text=f"Stems", callback_data=f'showfile_stems_{product_id}'),
-#          InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_stems_{product_id}')],
-#         [InlineKeyboardButton(text=f"Preview", callback_data=f'showfile_preview_{product_id}'),
-#          InlineKeyboardButton(text=f"Edit", callback_data=f'editfile_preview_{product_id}')],
-#         [InlineKeyboardButton(text=f"‹ Back", callback_data=f'beat_{product_id}')]
-#     ]) 
-#     return ikb
-
 
 def get_files_kb(product_id, preview_link, mp3_link, wav_link, stems_link) -> InlineKeyboardMarkup:
     buttons = []

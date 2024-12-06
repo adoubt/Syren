@@ -22,16 +22,17 @@ from src.methods.database.wishlists_manager import WishlistsDatabase
 # from src.methods.payment.payment_processing import ProcessOrder
 
 
+from aiocpa.types import Invoice
 router =  Router()
 
-from src.misc import bot,bot_id, SUPER_ADMIN, SERVICE_FEE,LINK
+from src.misc import bot,cp,bot_id, SUPER_ADMIN, SERVICE_FEE,LINK
 from src.handlers.decorators import new_seller_handler, new_user_handler
 
 import pytonconnect.exceptions
 from pytoniq_core import Address
 from pytonconnect import TonConnect
 
-
+from src.methods.payment.process import ProcessService
 from src.methods.payment.TON.messages import get_comment_message
 from src.methods.payment.TON.connector import get_connector
 from src.methods.utils import get_file_id,parse_callback_data
@@ -170,7 +171,7 @@ async def generate_cart_handler(message: Message, is_clb=False,current_page:int|
 
     # Получаем товары из корзины
     cart_items = await shopping_cart_service.get_cart_items(user_id)
-
+    await ProcessService.validate_order(user_id)
     # Если корзина пуста
     if not cart_items:
         await message.answer(text="Cart is Empty")
@@ -215,21 +216,22 @@ async def generate_cart_handler(message: Message, is_clb=False,current_page:int|
     if not enriched_cart :
         await message.answer(text="Cart is Empty")
         return
-
+    text = await ProcessService.generate_cart_summary(enriched_cart)
     default_payment_method = await UsersDatabase.get_value(user_id,"default_payment_method")
     # Генерация клавиатуры с товарами
     keyboard = user_keyboards.get_generated_cart_kb(enriched_cart, user_id, total_amount,payment_method=default_payment_method)
     
     # Отправляем сообщение с корзиной и клавиатурой
     if message.text and message.from_user.is_bot:
-        await message.edit_text(text="Your cart:", reply_markup=keyboard)
+        await message.edit_text(text=text,parse_mode='HTML', reply_markup=keyboard)
     else:
-        await message.answer("Your cart:", reply_markup=keyboard)
-        await message.edit_caption(
-            caption=None,
-            reply_markup=None,  # Удалить клавиатуру
-            remove_unset=True   # Указать, что отсутствующие поля нужно удалить
-)
+        await message.answer(text=text,parse_mode='HTML', reply_markup=keyboard)
+        if message.caption:
+            await message.edit_caption(
+                caption=None,
+                reply_markup=None,  # Удалить клавиатуру
+                remove_unset=True   # Указать, что отсутствующие поля нужно удалить
+                )
 
         
 
@@ -1056,9 +1058,7 @@ async def successful_payment(message: Message) -> None:
     #приват канал для регистрации всех транзакций тут же
 
 
-@router.callback_query(F.data == "checkout")
-async def checkout_clb_handler(clb: CallbackQuery, **kwargs):
-    await clb.answer('This feature is not available yet.')
+
 
 @router.callback_query(lambda clb: clb.data == 'choosePaymentMethod')
 async def choosePaymentMethod_clb_handler(clb: CallbackQuery, **kwargs):
@@ -1096,3 +1096,45 @@ async def emptycallback(clb: CallbackQuery, **kwargs):
 @router.callback_query(lambda clb: clb.data == 'notifications')
 async def notifications_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     await clb.answer('This feature is not available yet.')
+
+
+
+@router.callback_query(lambda clb: clb.data.startswith("checkout"))
+async def checkout_clb_handler(clb: CallbackQuery, **kwargs):
+    user_id = clb.message.chat.id
+    ###### какая то проверка
+
+
+    validation = await ProcessService.validate_order(user_id)
+    if not validation["valid"]:
+        await clb.message.answer("Ошибка:\n" + "\n".join(validation["errors"]))
+        await generate_cart_handler(clb.message, is_clb=True)
+        return
+    enriched_cart = validation['enriched_cart']
+
+    await clb.message.answer(text = "Ваш заказ корректен. Готов к оплате!",reply_markup=user_keyboards.get_order_summary_kb())
+    # invoice = await cp.create_invoice(1, "USDT")
+    # create_invoice(amount, asset=None, *, currency_type=None, fiat=None, accepted_assets=None, description=None, hidden_message=None, paid_btn_name=None, paid_btn_url=None, payload=None, allow_comments=None, allow_anonymous=None, expires_in=None)
+    # print("invoice link:", invoice.bot_invoice_url)
+    # invoice.await_payment(payload="payload")
+
+
+
+
+# # Обработчик создания счета
+# @router.message()
+# async def get_invoice(message):
+#     invoice = await cp.create_invoice(1, "USDT")  # Создаем счет на 1 USDT
+#     await message.answer(f"Pay here: {invoice.bot_invoice_url}")
+#     invoice.await_payment(message=message)  # Ждем оплаты
+
+# Обработчик успешной оплаты
+
+@cp.polling_handler()
+async def payment_handler(invoice: Invoice, payload: str):
+    print(f"Received", invoice.amount, invoice.asset, payload)
+
+
+@cp.expired_handler()
+async def expired_invoice_handler(invoice: Invoice, payload: str):
+    print(f"Expired invoice", invoice.invoice_id, payload) 

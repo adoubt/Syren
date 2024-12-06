@@ -240,7 +240,7 @@ class ShoppingCartService:
     async def update_status(self, user_id: int, status: str) -> None:
         """Обновить статус корзины для пользователя."""
         cart = await self.get_or_create_cart(user_id)  # Неважно время, просто нужен cart_id
-        await self.cart_manager.update_cart_status(cart, status, )
+        await self.cart_manager.update_cart_status(cart, status )
 
     async def count_items_in_cart(self, user_id: int) -> int: 
         """Посчитать количество товаров в корзине пользователя.""" 
@@ -256,3 +256,5 @@ class ShoppingCartService:
         """Применить купон"""
         cart = await self.get_or_create_cart(user_id)
         await self.applied_coupon_manager.apply_coupon(cart,coupon_id,)
+    
+        
