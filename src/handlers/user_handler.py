@@ -93,11 +93,12 @@ async def start_handler(message: Message, is_clb=False, product_id:int| None=Non
                                                     already_in_cart=already_in_cart,
                                                     user_id=user_id)
                 
+                caption = 'SOLD' if is_sold else '' 
                 if message.audio:
-                    await message.edit_caption( reply_markup=ikb, caption = '')
+                    await message.edit_caption( reply_markup=ikb, caption =caption)
                 else:
                     
-                    await message.answer_audio(audio=preview_link, reply_markup=ikb , caption = '')
+                    await message.answer_audio(audio=preview_link, reply_markup=ikb , caption = caption)
     except Exception as e:
         print(e) 
         await message.answer('Wassap?', reply_markup = user_keyboards.get_main_buyer_kb(wishlist_count,cart_count) )            
@@ -184,10 +185,18 @@ async def generate_cart_handler(message: Message, is_clb=False,current_page:int|
     enriched_cart = [] 
     # Собираем данные для корзины 
     for item, product, license in zip(cart_items, products_results, licenses_results): 
-         # Если продукт или лицензия не найдены, пропускаем товар
-        if not license and product:
+        if product ==-1:
+            await shopping_cart_service.remove_item(user_id=user_id,product_id=item.product_id)
+            await message.answer(text=f"Sorry 1 item from your cart has been deleted by seller")
+            continue  # Пропускаем поврежденный товар
+        # Если продукт или лицензия не найдены, пропускаем товар
+        elif product[9] == 1:
+            await shopping_cart_service.remove_item(user_id=user_id,product_id=product[0])
+            await message.answer(text=f"Sorry, the beat from your cart was sold exclusively",reply_markup=user_keyboards.get_link_kb(product[0],product[2]))
+        elif not license:
             # await shopping_cart_service.remove_item(user_id,product[0])
-            await message.answer(text=f"Sorry, the license for '{product[2]}' has been changed.",reply_markup=user_keyboards.get_link_kb(product[0],product[2]))
+            await message.answer(text=f"Sorry, the license for '{product[2]}' has been changed.",)
+            await shopping_cart_service.remove_item(user_id=user_id,product_id=product[0])
             # Возможно, здесь можно удалить товар из базы данных или корзины
             continue  # Пропускаем поврежденный товар
 
@@ -203,6 +212,10 @@ async def generate_cart_handler(message: Message, is_clb=False,current_page:int|
             "name": product[2], # Имя товара 
             "price": license[4], # Цена товара
                 })
+    if not enriched_cart :
+        await message.answer(text="Cart is Empty")
+        return
+
     default_payment_method = await UsersDatabase.get_value(user_id,"default_payment_method")
     # Генерация клавиатуры с товарами
     keyboard = user_keyboards.get_generated_cart_kb(enriched_cart, user_id, total_amount,payment_method=default_payment_method)
@@ -384,7 +397,7 @@ async def mybeats_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 
 @router.callback_query(lambda clb: clb.data.startswith('licenses'))
 @new_user_handler
-async def licenses_clb_handler(clb: CallbackQuery, product_id:int|None = None, is_clb=False, **kwargs):
+async def licenses_clb_handler(clb: CallbackQuery,state = FSMContext, product_id:int|None = None, is_clb=False, **kwargs):
     if product_id == None:
         data = clb.data.split('_',1)
         product_id = int(data[1])
@@ -403,6 +416,7 @@ async def licenses_clb_handler(clb: CallbackQuery, product_id:int|None = None, i
     
     licenses = await LicensesDatabase.get_licenses_by_user(seller, license_type)
     disabled = await LicensesProductsDatabase.get_disabled(product_id)
+    await state.clear()
     if is_clb:
         await bot.edit_message_reply_markup(chat_id=clb.message.chat.id, message_id=clb.message.message_id,reply_markup = user_keyboards.get_product_licenses_kb(product_id, licenses,disabled))
     else:
@@ -410,7 +424,8 @@ async def licenses_clb_handler(clb: CallbackQuery, product_id:int|None = None, i
 
 @router.callback_query(lambda clb: clb.data.startswith('files'))
 @new_user_handler
-async def files_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+async def files_clb_handler(clb: CallbackQuery, state = FSMContext,is_clb=False, **kwargs):
+    await state.clear()
     data = clb.data.split('_',1)
     product_id = int(data[1])
     product = await ProductsDatabase.get_product(product_id)
@@ -438,11 +453,13 @@ async def showfile_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 
 @router.callback_query(lambda clb: clb.data.startswith('deletefile_'))
 @new_user_handler
-async def deletefile_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+async def deletefile_clb_handler(clb: CallbackQuery,state = FSMContext, is_clb=False, **kwargs):
+    
     data = clb.data.split('_',2)
     product_id = int(data[2])
     file_type = data[1]
     await ProductsDatabase.set_value(product_id,f'{file_type}_link','')
+    await state.clear()
     product = await ProductsDatabase.get_product(product_id)
     preview_link,mp3_link,wav_link,stems_link = product[4],product[5],product[6],product[7]
     await clb.message.edit_text(text='Files:\n(tap to show)',reply_markup = user_keyboards.get_files_kb(product_id,preview_link,mp3_link,wav_link,stems_link))
@@ -484,12 +501,12 @@ async def file_ask_callback_handler(message: types.Message, state: FSMContext, *
         text = f'Updated!\nFiles:'
         
     else:
-        await state.clear()
         text = f'Error: Unexpected file format, not {file_type}\nFiles:'
     product = await ProductsDatabase.get_product(product_id)
     preview_link,mp3_link,wav_link,stems_link = product[4],product[5],product[6],product[7]
+    await state.clear()
     await message.answer(text=text, reply_markup = user_keyboards.get_files_kb(product_id,preview_link,mp3_link,wav_link,stems_link)) 
-
+         
 
 @router.callback_query(lambda clb: clb.data == 'hide_file')
 async def hide_file_handler(clb: CallbackQuery, is_clb=False, **kwargs):
@@ -573,8 +590,14 @@ async def cancel_handler(clb: CallbackQuery,state = FSMContext, is_clb=False, **
     
     parsed_data = parse_callback_data(clb.data)
     reffer = parsed_data.get('reffer') if parsed_data.get('reffer') else None
+    params = parsed_data.get('params') if parsed_data.get('params') else None
     if reffer == 'mylicense':
-        await mylicenses_handler(clb.message, is_clb=True)
+        if params !='None':
+            license_id= int(params)
+            await mylicense_clb_handler(clb, license_id)
+
+        else:
+            await mylicenses_handler(clb.message, is_clb=True)
     # await bot.delete_message(chat_id=clb.message.chat.id,message_id=clb.message.message_id - 1)
     # await clb.message.delete()
     current_state = await state.get_state()
@@ -692,7 +715,7 @@ async def mylicense_clb_handler(clb: CallbackQuery, license_id:int|None=None,is_
     if is_active !=1:
         meta_preview +='💤'
     user_id = clb.chat.id if is_clb else clb.message.chat.id 
-    message_id = clb.message_id-1 if is_clb else clb.message.message_id
+    message_id = clb.message_id-1 if is_clb else clb.message.message_id # Если пришло с колбеком, значит условия перезаписаны и стоит удалить мусор из чата. зачем вернуться к лицухе
     
     if is_clb: 
         await bot.delete_messages(chat_id=user_id,message_ids={clb.message_id,clb.message_id-1})
@@ -718,10 +741,10 @@ async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False, state = FSMCo
     
     if data[1] == 'name':
         await state.set_state(LicenseEdit.name_ask)
-        await clb.message.edit_text(text = 'Imput new name',reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense'))
+        await clb.message.edit_text(text = 'Imput new name',reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense',params=license_id))
     elif data[1] == 'desc':
         await state.set_state(LicenseEdit.desc_ask)
-        await clb.message.edit_text(text = 'Imput new description',reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense'))
+        await clb.message.edit_text(text = 'Imput new description',reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense',params=license_id))
     elif data[1] == 'type': 
         await LicensesDatabase.toggle_license_type(license_id)
     
@@ -736,7 +759,7 @@ async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False, state = FSMCo
             await mylicense_clb_handler(clb,license_id)
     elif data[1] == 'price':
         await state.set_state(LicenseEdit.price_ask)
-        await clb.message.edit_text(text = 'Imput new price',reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense'))
+        await clb.message.edit_text(text = 'Imput new price',reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense',params=license_id))
         
     elif data[1] == 'feature':
         if data[3] == '1':
@@ -759,13 +782,24 @@ async def licenseedit_clb_handler(clb: CallbackQuery,is_clb=False, state = FSMCo
             file_like_object.seek(0)  # Переходим в начало файла
             await clb.message.answer_document(document=InputFile(file_like_object, filename="template_license.txt"),reply_markup=user_keyboards.get_hide_file_kb())
         else: #тут шерю дефолт
-            markdown = FSInputFile("src/default_markdown.md", filename="default_markdown.md")
+            markdown = FSInputFile("src/default_markdown.md", filename="default_template.md")
             await clb.message.answer_document(document=markdown,reply_markup=user_keyboards.get_hide_file_kb())
         await clb.answer()
     elif data[1] == 'uploadfile':
         await state.set_state(LicenseEdit.upload_ask)
         # await state.set_data([license_id])
-        await clb.message.edit_text(text = 'Upload or forward yor contract file',reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense'))
+        text ="""
+Upload or forward yor contract file
+
+The contract will be generated from <i>markdown_file.md</i> with variables like: <pre>
+{CONTRACT_DATE}
+{PRODUCER_ALIAS}
+{PRODUCT_TITLE}
+etc...</pre>
+There are different templates on exclusive and non-exclusive. 
+Non-exclusive template will be applied on all non-exclusive licenses. 
+"""
+        await clb.message.edit_text(text = text,parse_mode ='HTML',reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense',params=license_id))
     elif data[1] == 'delete':
         await LicensesDatabase.del_license(license_id) 
         
@@ -783,7 +817,7 @@ async def handle_license_edit(message: types.Message, state: FSMContext, **kwarg
     if current_state == LicenseEdit.name_ask.state:
         if not message.text:
             await message.delete()
-            await bot.edit_message_text(text = 'No text given, pls input again!', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb())
+            await bot.edit_message_text(text = 'No text given, pls input again!', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense',params=license_id))
             await state.set_state(LicenseEdit.name_ask)
             return        
         key = "name"
@@ -792,7 +826,7 @@ async def handle_license_edit(message: types.Message, state: FSMContext, **kwarg
     elif current_state == LicenseEdit.desc_ask.state:
         if not message.text:
             await message.delete()
-            await bot.edit_message_text(text = 'No text given, pls input again!', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb())
+            await bot.edit_message_text(text = 'No text given, pls input again!', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense',params=license_id))
             await state.set_state(LicenseEdit.desc_ask)
             return
         key = "description"
@@ -809,7 +843,7 @@ async def handle_license_edit(message: types.Message, state: FSMContext, **kwarg
                 text='Only numbers (min 1)', 
                 chat_id=message.chat.id, 
                 message_id=message.message_id - 1, 
-                reply_markup=user_keyboards.get_cancel_kb()
+                reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense',params=license_id)
             )
             await state.set_state(LicenseEdit.price_ask)
             return
@@ -821,7 +855,7 @@ async def handle_license_edit(message: types.Message, state: FSMContext, **kwarg
         
         if not message.document:
             await message.delete()
-            await bot.edit_message_text(text = 'Please send file as document..', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb()) 
+            await bot.edit_message_text(text = 'Please send file as document..', chat_id = message.chat.id,message_id=message.message_id-1,reply_markup=user_keyboards.get_cancel_kb(reffer='mylicense',params=license_id)) 
             await state.set_state(LicenseEdit.upload_ask)
             return
         key = "license_file_id"
@@ -1023,8 +1057,8 @@ async def successful_payment(message: Message) -> None:
 
 
 @router.callback_query(F.data == "checkout")
-async def on_paystars_cancel(clb: CallbackQuery, **kwargs):
-    pass
+async def checkout_clb_handler(clb: CallbackQuery, **kwargs):
+    await clb.answer('This feature is not available yet.')
 
 @router.callback_query(lambda clb: clb.data == 'choosePaymentMethod')
 async def choosePaymentMethod_clb_handler(clb: CallbackQuery, **kwargs):
@@ -1058,3 +1092,7 @@ async def anytext_handler(message:Message,**kwargs):
 @router.callback_query(F.data == "emptycallback")
 async def emptycallback(clb: CallbackQuery, **kwargs):
    await clb.answer()
+
+@router.callback_query(lambda clb: clb.data == 'notifications')
+async def notifications_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
+    await clb.answer('This feature is not available yet.')

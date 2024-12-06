@@ -273,7 +273,7 @@ class LicenseTemplates:
             async with db.execute('''CREATE TABLE IF NOT EXISTS templates (
     template_id INTEGER PRIMARY KEY AUTOINCREMENT,  -- Уникальный идентификатор шаблона
     seller_id INTEGER DEFAULT NULL,       -- ID лицензии (NULL для дефолтного шаблона)
-    markdown TEXT NOT NULL                -- Шаблон договора в формате Markdown           
+    markdown TEXT UNIQUE NOT NULL -- Шаблон договора в формате Markdown           
     );'''
                                   ) as cursor:
                 pass

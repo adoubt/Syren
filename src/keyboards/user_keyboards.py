@@ -1,6 +1,6 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from src.misc import LINK
-
+from typing import Any
 def get_choose_licenses_kb(
     user_id, product_id, licenses, disabled, feature: int = None, in_cart: int = None
 ) -> InlineKeyboardMarkup:
@@ -174,14 +174,15 @@ def get_showcase_kb(product_id:int, is_sold:int, channel:str, already_in_wishlis
 
     channel_btn = [InlineKeyboardButton(text=f'Channel', url=channel)]
 
-    if is_sold == 0:
+    if is_sold == 1 or not price:
         ikb = InlineKeyboardMarkup(inline_keyboard=[
-        cart_btn,
         wishlist_btn,
         channel_btn,
         ]) 
+        
     else:
         ikb = InlineKeyboardMarkup(inline_keyboard=[
+        cart_btn,
         wishlist_btn,
         channel_btn,
     ]) 
@@ -349,16 +350,16 @@ def get_edit_file_kb(product_id,file_type)-> InlineKeyboardMarkup:
     ]) 
     return ikb
 
-def get_newbeat_kb(reffer:str=None)-> InlineKeyboardMarkup:
+def get_newbeat_kb(reffer:str=None,params:Any=None)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"Skip ›", callback_data=f'skip_stems')],
-        [InlineKeyboardButton(text=f"Cancel", callback_data=f'cancel:reffer={reffer}')]
+        [InlineKeyboardButton(text=f"Cancel", callback_data=f'cancel:reffer={reffer}&params={params}')]
     ]) 
     return ikb
 
-def get_cancel_kb(reffer:str=None)-> InlineKeyboardMarkup:
+def get_cancel_kb(reffer:str=None,params:Any=None)-> InlineKeyboardMarkup:
     ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Cancel", callback_data=f'cancel:reffer={reffer}')]
+        [InlineKeyboardButton(text=f"Cancel", callback_data=f'cancel:reffer={reffer}&params={params}')]
     ]) 
     return ikb
 
