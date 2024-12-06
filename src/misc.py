@@ -3,7 +3,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 import os
 # CRYPTO_PAY
-from cryptopay import MAINNET, TESTNET, CryptoPay
+from aiocpa import MAINNET, TESTNET, CryptoPay
 
 load_dotenv()
 
