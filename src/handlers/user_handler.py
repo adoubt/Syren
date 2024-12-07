@@ -12,6 +12,7 @@ from src.keyboards import user_keyboards
 
 from src.methods.database.users_manager import UsersDatabase
 from src.methods.database.orders_manager import OrdersService
+orders_service = OrdersService()
 from src.methods.database.carts_manager import ShoppingCartService
 shopping_cart_service = ShoppingCartService()
 from src.methods.database.products_manager import ProductsDatabase
@@ -116,8 +117,6 @@ async def showcase_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
     data = clb.data.split('_',1)
     product_id = data[1]
     await start_handler(clb.message, is_clb=True,product_id = product_id)
-
-
 
 
 @router.message(F.text == "⚙️ Settings")
@@ -1102,22 +1101,29 @@ async def notifications_clb_handler(clb: CallbackQuery, is_clb=False, **kwargs):
 @router.callback_query(lambda clb: clb.data.startswith("checkout"))
 async def checkout_clb_handler(clb: CallbackQuery, **kwargs):
     user_id = clb.message.chat.id
+    
+    sticker_id = "CAACAgIAAxkBAAEGZ9FkGvCRnhLZZIHCXv6JhGHREyzgkgACtRMAAp2w0UuLqpm8iw7ZOSoE"  # пример ID стикера
+    message = await bot.send_sticker(user_id, sticker=sticker_id)
+   
     ###### какая то проверка
-
-
     validation = await ProcessService.validate_order(user_id)
     if not validation["valid"]:
         await clb.message.answer("Ошибка:\n" + "\n".join(validation["errors"]))
         await generate_cart_handler(clb.message, is_clb=True)
         return
     enriched_cart = validation['enriched_cart']
-
-    await clb.message.answer(text = "Ваш заказ корректен. Готов к оплате!",reply_markup=user_keyboards.get_order_summary_kb())
-    # invoice = await cp.create_invoice(1, "USDT")
-    # create_invoice(amount, asset=None, *, currency_type=None, fiat=None, accepted_assets=None, description=None, hidden_message=None, paid_btn_name=None, paid_btn_url=None, payload=None, allow_comments=None, allow_anonymous=None, expires_in=None)
-    # print("invoice link:", invoice.bot_invoice_url)
-    # invoice.await_payment(payload="payload")
-
+    cart_total = validation['cart_total']
+    cart_id, user_id, subtotal_amount, service_fee, total_amount,payment_method = cart_total.values()
+    if payment_method == 'CryptoBot':
+        # await clb.message.answer(text = "Ваш заказ корректен. Готов к оплате!",reply_markup=user_keyboards.get_order_summary_kb())
+        invoice = await cp.create_invoice(total_amount, "USDT")
+        print("invoice link:", invoice.bot_invoice_url)
+        await message.answer(f"pay: {invoice.mini_app_invoice_url}")
+        invoice.await_payment(message=clb.message)
+        await orders_service.create_order(user_id=user_id,cart_id=cart_id,)
+        
+        await clb.message.answer(f'ссылка на оплату: {invoice.bot_invoice_url}')
+    await bot.delete_message(user_id, message.message_id)
 
 
 
@@ -1131,10 +1137,15 @@ async def checkout_clb_handler(clb: CallbackQuery, **kwargs):
 # Обработчик успешной оплаты
 
 @cp.polling_handler()
-async def payment_handler(invoice: Invoice, payload: str):
-    print(f"Received", invoice.amount, invoice.asset, payload)
-
+async def handle_payment(
+    invoice: Invoice,
+    message: Message,
+) -> None:
+    await message.answer(
+        f"payment received: {invoice.amount} {invoice.asset}",
+    )
 
 @cp.expired_handler()
 async def expired_invoice_handler(invoice: Invoice, payload: str):
     print(f"Expired invoice", invoice.invoice_id, payload) 
+    
