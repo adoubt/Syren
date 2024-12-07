@@ -22,7 +22,8 @@ class CartItem:
     quantity: int
     license_id: int
     added_at:datetime
-
+    is_reserved:int
+    reserved_at:datetime
 @dataclass
 class AppliedCoupon:
     cart_id: int
@@ -78,6 +79,8 @@ class Database:
                              quantity INTEGER NOT NULL DEFAULT 1, 
                              license_id INTEGER NOT NULL, 
                              added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                             is_reserved INTEGER DEFAULT 0,
+                             reserved_at TIMESTAMP DEFAULT NULL
                              UNIQUE(product_id,cart_id)
                              FOREIGN KEY (cart_id) REFERENCES carts(cart_id) ) ''') 
             
@@ -152,7 +155,7 @@ class CartItemManager:
     async def get_items_from_cart(self, cart: Cart) -> List[CartItem]:
         """Получить все товары из корзины."""
         rows = await self.db.fetch_all( 
-            'SELECT item_id, cart_id, product_id, quantity, license_id, added_at FROM items WHERE cart_id = ?', 
+            'SELECT * FROM items WHERE cart_id = ?', 
             (cart.cart_id,)
         )
         return [CartItem(*row) for row in rows]
@@ -178,7 +181,63 @@ class CartItemManager:
             (product_id,cart.cart_id,)
         )
         return cart_item if cart_item else None
+    ##################################
+    ##                              ##
+    ##     ОТРЕФАКТОРИ ЭТО БОЖЕ     ##
+    ##                              ##
+    ##################################
+    async def is_item_reserved(self, cart: Cart, product_id: int, time_limit: int) -> bool:
+        """Проверить, зарезервирован ли товар и не истек ли срок резервирования."""
+        result = await self.db.fetch_one(
+            '''
+            SELECT is_reserved, reserved_at
+            FROM items 
+            WHERE cart_id = ? 
+            AND product_id = ?
+            ''',
+            (cart.cart_id, product_id)
+        )
 
+        if result:
+            is_reserved, reserved_at = result
+            if reserved_at:
+                # Если reserved_at не NULL, проверяем срок резервирования
+                time_diff = await self.db.fetch_val(
+                    '''
+                    SELECT strftime('%s', 'now') - strftime('%s', reserved_at)
+                    '''
+                )
+                if time_diff > time_limit:
+                    # Время резервирования истекло, разрезервируем товар
+                    await self.db.execute(
+                        '''
+                        UPDATE items 
+                        SET is_reserved = 0, reserved_at = NULL
+                        WHERE cart_id = ? 
+                        AND product_id = ?
+                        ''',
+                        (cart.cart_id, product_id)
+                    )
+                
+                    return False  # Товар больше не зарезервирован
+            return is_reserved == 1
+        return False
+
+    
+    async def reserve_item(self, cart: Cart, product_id: int) -> None:
+        """Установить резерв для товара."""
+        await self.db.execute(
+            'UPDATE items SET is_reserved = 1, reserved_at = CURRENT_TIMESTAMP WHERE cart_id = ? AND product_id = ?',
+            (cart.cart_id, product_id)
+        )
+
+    async def unreserve_item(self, cart: Cart, product_id: int) -> None:
+        """Снять резерв с товара."""
+        await self.db.execute(
+            'UPDATE items SET is_reserved = 0, reserved_at = NULL WHERE cart_id = ? AND product_id = ?',
+            (cart.cart_id, product_id)
+        )
+    
 class AppliedCouponManager:
     """Сервис для работы с Coupon Codes."""
     
@@ -257,4 +316,15 @@ class ShoppingCartService:
         cart = await self.get_or_create_cart(user_id)
         await self.applied_coupon_manager.apply_coupon(cart,coupon_id,)
     
-        
+    async def reserve_item(self, user_id: int, product_id: int) -> bool:
+        """Зарезервировать товар."""
+        cart = await self.get_or_create_cart(user_id)
+        if await self.cart_item_manager.is_item_reserved(cart, product_id):
+            return False
+        await self.cart_item_manager.reserve_item(cart, product_id)
+        return True
+
+    async def unreserve_item(self, user_id: int, product_id: int) -> None:
+        """Снять резерв с товара."""
+        cart = await self.get_or_create_cart(user_id)
+        await self.cart_item_manager.unreserve_item(cart, product_id)

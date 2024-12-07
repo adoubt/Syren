@@ -15,8 +15,10 @@ class ProcessService:
         Проверяет, валиден ли заказ.
         Возвращает словарь с результатом проверки.
         """
+        
         enriched_cart = []
-        result = {"valid": True, "errors": [],"enriched_cart":enriched_cart}
+        cart_total = {"cart_id":int,"user_id":int,"subtotal_amount":float,"service_fee":float, "total_amount":float,"payment_method":str}
+        result = {"valid": True,"errors": [],"enriched_cart":enriched_cart,"cart_total":cart_total}
         cart_items= await shoppingshopping_cart_service.get_cart_items(user_id) 
         
         if not cart_items:
@@ -29,8 +31,9 @@ class ProcessService:
         # Ждем завершения всех запросов 
         products_results = await asyncio.gather(*product_tasks) 
         licenses_results = await asyncio.gather(*license_tasks) 
+        subtotal_amount = 0
         total_amount = 0 
-         
+        service_fee = 0
         for item, product, license in zip(cart_items, products_results, licenses_results): 
             if product ==-1:
                 result["valid"] = False
@@ -45,10 +48,17 @@ class ProcessService:
                 result["errors"].append(f"Sorry, the license for '{product[2]}' has been changed.")
                 result["valid"] = False
                 return result
+            elif license[13] == 1: #Если эксклюзив, резервируем
+                result = await shoppingshopping_cart_service.reserve_item(user_id=user_id,product_id=product[0])
+                if not result: #Уже зарезервировано другим юзером 
+                    result["errors"].append(f"Sorry, the beat {product[2]} already reserved.")
+                    result["valid"] = False
+                    return result
             #тут будет подсчет промокода
             #subtotal_amount+=license[4]*promocode
-
-            total_amount += license[4] # Цена товара 
+            cart_total["cart_id"] = item.cart_id 
+            subtotal_amount+= license[4]
+            
             enriched_cart.append({ 
                 "item_id": item.item_id, 
                 "cart_id": item.cart_id, 
@@ -59,11 +69,21 @@ class ProcessService:
                 "name": product[2], # Имя товара 
                 "price": license[4], # Цена товара
                     })
+        
         if not enriched_cart:
             result["valid"] = False
             result["errors"].append("Cart is Empty")
             return result
-        
+        service_fee = subtotal_amount*SERVICE_FEE
+        total_amount = subtotal_amount + service_fee
+        payment_method = await UsersDatabase.get_value(user_id=user_id,key='default_payment_method')
+
+        cart_total["payment_method"] = payment_method
+        cart_total['subtotal_amount']= subtotal_amount
+        cart_total['service_fee'] = service_fee
+        cart_total['total_amount']= total_amount
+        cart_total['user_id'] = user_id
+        result["cart_total"] = cart_total 
         result['enriched_cart'] = enriched_cart
         return result
  
