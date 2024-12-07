@@ -21,8 +21,8 @@ class OrdersDAL:
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 paid_at TIMESTAMP DEFAULT NULL)'''
 
-    INSERT_ORDER_QUERY = '''INSERT INTO orders(user_id, promo_code_id, total_amount, payment_method, cart_id)
-                            VALUES (?, ?, ?, ?, ?)'''
+    INSERT_ORDER_QUERY = '''INSERT INTO orders(user_id, promo_code_id,subtotal_amount,service_fee, total_amount, payment_method, cart_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)'''
 
     SELECT_ORDER_VALUE_QUERY = '''SELECT {key} FROM orders WHERE order_id = ?'''
     SELECT_ORDERS_BY_STATUS_QUERY = '''SELECT * FROM orders WHERE status = ?'''
@@ -39,13 +39,13 @@ class OrdersDAL:
             await db.commit()
 
     @classmethod
-    async def create_order(cls, user_id: int, cart_id: int, total_amount: float, payment_method: str = 'crypto',
+    async def create_order(cls, user_id: int, cart_id: int, subtotal_amount:float,service_fee:float, total_amount: float, payment_method: str = 'CryptoBot',
                            promo_code_id: Optional[int] = None) -> int:
         logger.info(f"Creating order for user_id {user_id} with cart_id {cart_id}")
         async with aiosqlite.connect(cls.DB_PATH) as db:
             try:
                 cursor = await db.execute(cls.INSERT_ORDER_QUERY,
-                                          (user_id, promo_code_id, total_amount, payment_method, cart_id))
+                                          (user_id, promo_code_id, subtotal_amount,service_fee,total_amount, payment_method, cart_id))
                 await db.commit()
                 order_id = cursor.lastrowid
                 logger.info(f"Order created with id {order_id}")
@@ -117,9 +117,9 @@ class OrdersService:
     async def create_table(self)-> None:
         await self.orders_dal.create_table()
         
-    async def create_order(self, user_id: int, cart_id: int, total_amount: float, payment_method: str = 'crypto',
+    async def create_order(self, user_id: int, cart_id: int,subtotal_amount:float,service_fee:float, total_amount: float, payment_method: str = 'CryptoBot',
                            promo_code_id: Optional[int] = None) -> int:
-        return await self.orders_dal.create_order(user_id, cart_id, total_amount, payment_method, promo_code_id)
+        return await self.orders_dal.create_order(user_id, cart_id, subtotal_amount,service_fee,total_amount, payment_method, promo_code_id)
 
     async def get_order_status(self, order_id: int) -> Optional[str]:
         return await self.orders_dal.get_order_value(order_id, 'status')
