@@ -1,5 +1,5 @@
 # Syren|Beats Marketplace 
-[**Current Link**](https://t.me/OctarynBot)
+[**Current Link**](https://t.me/OctarynBot) (FROZEN)
 
 [**Делаю платформу для битов(канал)**](https://t.me/syrenpath)
 
